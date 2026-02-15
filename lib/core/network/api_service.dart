@@ -37,6 +37,20 @@ class ApiService {
     }
   }
 
+  // GET Request for single dress
+  Future<dynamic> getDressById(int dressId) async {
+    try {
+      final url = Uri.parse(ApiConfig.getFullUrl('/dresses/$dressId'));
+      final response = await http
+          .get(url, headers: _headers)
+          .timeout(ApiConfig.standardTimeout);
+
+      return _handleResponse(response);
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
   // POST Request
   Future<dynamic> post(String endpoint, {Map<String, dynamic>? data}) async {
     try {
@@ -135,7 +149,7 @@ class ApiService {
 
   // Handle Response
   dynamic _handleResponse(http.Response response) {
-    if (response.statusCode >= 200 && response.statusCode < 300) {
+    if (response.statusCode >= 200 && response.statusCode < 400) {
       return jsonDecode(response.body);
     } else {
       throw HttpException(
