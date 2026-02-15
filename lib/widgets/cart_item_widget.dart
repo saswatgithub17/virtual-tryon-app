@@ -3,10 +3,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../models/dress_model.dart';
-import '../config/api_config.dart';
-import '../config/theme_config.dart';
-import '../config/app_config.dart';
+import 'package:virtual_tryon_app/features/cart/data/models/cart_model.dart';
+import 'package:virtual_tryon_app/core/network/api_config.dart';
+import 'package:virtual_tryon_app/core/theme/app_theme.dart';
+import 'package:virtual_tryon_app/core/utils/app_config.dart';
 
 class CartItemWidget extends StatelessWidget {
   final CartItem item;
@@ -59,7 +59,7 @@ class CartItemWidget extends StatelessWidget {
                     'Size: ${item.selectedSize}',
                     style: const TextStyle(
                       fontSize: 14,
-                      color: ThemeConfig.textSecondary,
+                      color: AppTheme.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -68,7 +68,7 @@ class CartItemWidget extends StatelessWidget {
                   Text(
                     AppConfig.formatPrice(item.dress.price),
                     style: const TextStyle(
-                      color: ThemeConfig.primaryColor,
+                      color: AppTheme.primaryColor,
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
@@ -88,7 +88,7 @@ class CartItemWidget extends StatelessWidget {
                           onPressed: onRemove,
                           icon: const Icon(
                             Icons.delete_outline,
-                            color: ThemeConfig.errorColor,
+                            color: AppTheme.errorColor,
                           ),
                           tooltip: 'Remove from cart',
                         ),
@@ -159,9 +159,8 @@ class CartItemWidget extends StatelessWidget {
           // Increase Button
           _buildQuantityButton(
             icon: Icons.add,
-            onPressed: item.quantity < AppConfig.maxCartQuantity
-                ? onIncrease
-                : null,
+            onPressed:
+                item.quantity < AppConfig.maxCartQuantity ? onIncrease : null,
           ),
         ],
       ),
@@ -179,7 +178,7 @@ class CartItemWidget extends StatelessWidget {
         child: Icon(
           icon,
           size: 20,
-          color: onPressed != null ? ThemeConfig.primaryColor : Colors.grey,
+          color: onPressed != null ? AppTheme.primaryColor : Colors.grey,
         ),
       ),
     );
@@ -217,15 +216,15 @@ class CartItemCompact extends StatelessWidget {
       subtitle: Text('Size: ${item.selectedSize} × ${item.quantity}'),
       trailing: onRemove != null
           ? IconButton(
-        icon: const Icon(Icons.close),
-        onPressed: onRemove,
-      )
+              icon: const Icon(Icons.close),
+              onPressed: onRemove,
+            )
           : Text(
-        AppConfig.formatPriceShort(item.subtotal),
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+              AppConfig.formatPriceShort(item.subtotal),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
     );
   }
 }

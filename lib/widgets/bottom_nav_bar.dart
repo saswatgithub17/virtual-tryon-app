@@ -1,12 +1,9 @@
-// lib/widgets/bottom_nav_bar.dart
-// Bottom Navigation Bar Widget
-
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../config/theme_config.dart';
-import '../providers/cart_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:virtual_tryon_app/core/theme/app_theme.dart';
+import 'package:virtual_tryon_app/features/cart/presentation/cart_controller.dart';
 
-class AppBottomNavBar extends StatelessWidget {
+class AppBottomNavBar extends ConsumerWidget {
   final int currentIndex;
   final Function(int) onTap;
 
@@ -17,11 +14,11 @@ class AppBottomNavBar extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return BottomNavigationBar(
       currentIndex: currentIndex,
       onTap: onTap,
-      selectedItemColor: ThemeConfig.primaryColor,
+      selectedItemColor: AppTheme.primaryColor,
       unselectedItemColor: Colors.grey,
       type: BottomNavigationBarType.fixed,
       items: [
@@ -36,51 +33,50 @@ class AppBottomNavBar extends StatelessWidget {
           label: 'Try On',
         ),
         BottomNavigationBarItem(
-          icon: _buildCartIcon(context, false),
-          activeIcon: _buildCartIcon(context, true),
+          icon: _buildCartIcon(ref, false),
+          activeIcon: _buildCartIcon(ref, true),
           label: 'Cart',
         ),
       ],
     );
   }
 
-  Widget _buildCartIcon(BuildContext context, bool isActive) {
-    return Consumer<CartProvider>(
-      builder: (context, cart, child) {
-        return Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Icon(
-              isActive ? Icons.shopping_cart : Icons.shopping_cart_outlined,
-            ),
-            if (cart.itemCount > 0)
-              Positioned(
-                right: -6,
-                top: -6,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: ThemeConfig.secondaryColor,
-                    shape: BoxShape.circle,
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: 16,
-                    minHeight: 16,
-                  ),
-                  child: Text(
-                    cart.itemCount > 9 ? '9+' : cart.itemCount.toString(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
+  Widget _buildCartIcon(WidgetRef ref, bool isActive) {
+    final cartItems = ref.watch(cartControllerProvider);
+    final itemCount = cartItems.length;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Icon(
+          isActive ? Icons.shopping_cart : Icons.shopping_cart_outlined,
+        ),
+        if (itemCount > 0)
+          Positioned(
+            right: -6,
+            top: -6,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: const BoxDecoration(
+                color: AppTheme.secondaryColor,
+                shape: BoxShape.circle,
               ),
-          ],
-        );
-      },
+              constraints: const BoxConstraints(
+                minWidth: 16,
+                minHeight: 16,
+              ),
+              child: Text(
+                itemCount > 9 ? '9+' : itemCount.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -116,7 +112,7 @@ class FloatingBottomNavBar extends StatelessWidget {
         child: BottomNavigationBar(
           currentIndex: currentIndex,
           onTap: onTap,
-          selectedItemColor: ThemeConfig.primaryColor,
+          selectedItemColor: AppTheme.primaryColor,
           unselectedItemColor: Colors.grey,
           backgroundColor: Colors.white,
           elevation: 0,

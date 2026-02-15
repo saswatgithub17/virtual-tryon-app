@@ -3,7 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
-import '../config/theme_config.dart';
+import 'package:virtual_tryon_app/core/theme/app_theme.dart';
 
 class LoadingWidget extends StatelessWidget {
   final String? message;
@@ -22,14 +22,14 @@ class LoadingWidget extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           const CircularProgressIndicator(
-            color: ThemeConfig.primaryColor,
+            color: AppTheme.primaryColor,
           ),
           if (showMessage && message != null) ...[
             const SizedBox(height: 16),
             Text(
               message!,
               style: const TextStyle(
-                color: ThemeConfig.textSecondary,
+                color: AppTheme.textSecondary,
                 fontSize: 14,
               ),
               textAlign: TextAlign.center,
@@ -44,7 +44,7 @@ class LoadingWidget extends StatelessWidget {
   static Widget spinner() {
     return const Center(
       child: CircularProgressIndicator(
-        color: ThemeConfig.primaryColor,
+        color: AppTheme.primaryColor,
       ),
     );
   }
@@ -85,7 +85,7 @@ class ProgressLoadingWidget extends StatelessWidget {
                   value: progress,
                   backgroundColor: Colors.grey[200],
                   valueColor: const AlwaysStoppedAnimation<Color>(
-                    ThemeConfig.primaryColor,
+                    AppTheme.primaryColor,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -104,7 +104,7 @@ class ProgressLoadingWidget extends StatelessWidget {
             Text(
               message!,
               style: const TextStyle(
-                color: ThemeConfig.textSecondary,
+                color: AppTheme.textSecondary,
                 fontSize: 14,
               ),
               textAlign: TextAlign.center,

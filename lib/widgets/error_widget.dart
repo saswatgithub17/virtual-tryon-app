@@ -2,8 +2,8 @@
 // Error Display Widgets
 
 import 'package:flutter/material.dart';
-import '../config/theme_config.dart';
-import '../config/app_config.dart';
+import 'package:virtual_tryon_app/core/theme/app_theme.dart';
+import 'package:virtual_tryon_app/core/utils/app_config.dart';
 
 class ErrorDisplayWidget extends StatelessWidget {
   final String message;
@@ -30,14 +30,14 @@ class ErrorDisplayWidget extends StatelessWidget {
             Icon(
               icon ?? Icons.error_outline,
               size: 64,
-              color: ThemeConfig.errorColor,
+              color: AppTheme.errorColor,
             ),
             const SizedBox(height: 16),
             Text(
               message,
               style: const TextStyle(
                 fontSize: 16,
-                color: ThemeConfig.textSecondary,
+                color: AppTheme.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -118,7 +118,7 @@ class EmptyStateWidget extends StatelessWidget {
               message,
               style: const TextStyle(
                 fontSize: 16,
-                color: ThemeConfig.textSecondary,
+                color: AppTheme.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -179,7 +179,7 @@ class ErrorBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      color: ThemeConfig.errorColor,
+      color: AppTheme.errorColor,
       child: Row(
         children: [
           const Icon(
@@ -219,7 +219,7 @@ class ErrorBanner extends StatelessWidget {
             ),
           ],
         ),
-        backgroundColor: ThemeConfig.errorColor,
+        backgroundColor: AppTheme.errorColor,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 4),
         action: SnackBarAction(
@@ -248,7 +248,7 @@ class SuccessBanner {
             ),
           ],
         ),
-        backgroundColor: ThemeConfig.successColor,
+        backgroundColor: AppTheme.successColor,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 3),
       ),
@@ -270,7 +270,7 @@ class InfoBanner {
             ),
           ],
         ),
-        backgroundColor: ThemeConfig.primaryColor,
+        backgroundColor: AppTheme.primaryColor,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 3),
       ),
