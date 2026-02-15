@@ -8,36 +8,37 @@ environment:
 
 dependencies:
   auto_route: ^10.3.0
-  cached_network_image: ^3.3.0
-  camera: ^0.10.5+9
+  cached_network_image: ^3.4.1
+  camera: ^0.11.3+1
 
   # UI Components
   cupertino_icons: ^1.0.6
   dart_mappable: ^4.6.1
-  dio: ^5.4.0
+  dio: ^5.9.1
   flutter:
     sdk: flutter
 
   # Loading & Dialogs
   flutter_riverpod: ^2.6.1
-  flutter_spinkit: ^5.2.0
+  flutter_spinkit: ^5.2.2
 
   # Payment
-  flutter_stripe: ^10.1.1
-  flutter_svg: ^2.0.9
-  fluttertoast: ^8.2.4
+  flutter_stripe: ^12.2.0
+  flutter_svg: ^2.2.3
+  fluttertoast: ^9.0.0
 
   # Icons
   font_awesome_flutter: ^10.6.0
-  google_fonts: ^6.1.0
+  google_fonts: ^8.0.1
 
   # HTTP & Networking
-  http: ^1.1.2
+  http: ^1.6.0
 
-  http_parser: any
+  # http_parser is usually used directly
+  http_parser: ^4.1.2
 
   # Image Handling
-  image_picker: ^1.0.7
+  image_picker: ^1.2.1
 
   # Utils
   intl: ^0.19.0
@@ -51,11 +52,11 @@ dependencies:
   riverpod_annotation: ^2.6.1
   shared_preferences: ^2.2.2
   shimmer: ^3.0.0
-  smooth_page_indicator: ^1.1.0
+  smooth_page_indicator: ^1.2.1
 
   # PDF Viewer
   syncfusion_flutter_pdfviewer: ^24.1.41
-  url_launcher: ^6.2.3
+  url_launcher: ^6.3.2
   uuid: ^4.3.3
 dev_dependencies:
   auto_route_generator: ^10.2.3
@@ -64,7 +65,7 @@ dev_dependencies:
   flutter_lints: ^3.0.0
   flutter_test:
     sdk: flutter
-  riverpod_generator: ^2.6.4
+  riverpod_generator: ^2.6.5
 
 flutter:
   uses-material-design: true
@@ -73,8 +74,3 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
-  # Uncomment to add fonts
-  # fonts:
-  #   - family: Schyler
-  #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
