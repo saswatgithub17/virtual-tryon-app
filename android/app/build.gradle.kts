@@ -8,8 +8,8 @@ android {
     namespace = "com.virtualtryon.virtual_tryon_app"
     compileSdk = flutter.compileSdkVersion
     
-    // Comment out ndkVersion if NDK is not installed
-    // ndkVersion = flutter.ndkVersion
+    // NDK is now installed - enable it
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -22,7 +22,7 @@ android {
 
     defaultConfig {
         applicationId = "com.virtualtryon.virtual_tryon_app"
-        minSdk = 21
+        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
