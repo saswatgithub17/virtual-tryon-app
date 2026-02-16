@@ -9,7 +9,7 @@
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
     
     <application
-        android:label="virtual_tryon_app"
+        android:label="AuraTry"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

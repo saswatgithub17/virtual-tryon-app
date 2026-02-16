@@ -7,14 +7,15 @@ class ApiConfig {
   // BASE URL - CHANGE BASED ON YOUR ENVIRONMENT
   // =================================================================
 
-  /// For Android Emulator (Default)
-  static const String baseUrl = 'http://localhost:5000/api';
+  /// For Android Emulator (Default) - uses 10.0.2.2 to connect to host machine
+  // static const String baseUrl = 'http://10.0.2.2:5000/api';
 
-  /// For iOS Simulator
+  /// For Physical Device (WiFi) - USE YOUR COMPUTER'S IP ADDRESS
+  /// To find your IP: Run 'ipconfig' on Windows or 'ifconfig' on Mac/Linux
+  static const String baseUrl = 'http://10.30.29.1:5000/api';
+
+  /// For Localhost testing (only works on emulator/simulator)
   // static const String baseUrl = 'http://localhost:5000/api';
-
-  /// For Physical Device (WiFi)
-  // static const String baseUrl = 'http://192.168.1.XXX:5000/api';
 
   /// For Production
   // static const String baseUrl = 'https://your-domain.com/api';
