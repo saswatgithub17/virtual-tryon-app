@@ -24,12 +24,13 @@ class OrderMapper extends ClassMapperBase<Order> {
   static String _$orderId(Order v) => v.orderId;
   static const Field<Order, String> _f$orderId =
       Field('orderId', _$orderId, key: r'order_id');
-  static String _$customerName(Order v) => v.customerName;
+  static String? _$customerName(Order v) => v.customerName;
   static const Field<Order, String> _f$customerName =
-      Field('customerName', _$customerName, key: r'customer_name');
-  static String _$customerEmail(Order v) => v.customerEmail;
-  static const Field<Order, String> _f$customerEmail =
-      Field('customerEmail', _$customerEmail, key: r'customer_email');
+      Field('customerName', _$customerName, key: r'customer_name', opt: true);
+  static String? _$customerEmail(Order v) => v.customerEmail;
+  static const Field<Order, String> _f$customerEmail = Field(
+      'customerEmail', _$customerEmail,
+      key: r'customer_email', opt: true);
   static String? _$customerPhone(Order v) => v.customerPhone;
   static const Field<Order, String> _f$customerPhone = Field(
       'customerPhone', _$customerPhone,
@@ -164,8 +165,8 @@ class _OrderCopyWithImpl<$R, $Out> extends ClassCopyWithBase<$R, Order, $Out>
   @override
   $R call(
           {String? orderId,
-          String? customerName,
-          String? customerEmail,
+          Object? customerName = $none,
+          Object? customerEmail = $none,
           Object? customerPhone = $none,
           double? totalAmount,
           String? paymentStatus,
@@ -176,8 +177,8 @@ class _OrderCopyWithImpl<$R, $Out> extends ClassCopyWithBase<$R, Order, $Out>
           Object? createdAt = $none}) =>
       $apply(FieldCopyWithData({
         if (orderId != null) #orderId: orderId,
-        if (customerName != null) #customerName: customerName,
-        if (customerEmail != null) #customerEmail: customerEmail,
+        if (customerName != $none) #customerName: customerName,
+        if (customerEmail != $none) #customerEmail: customerEmail,
         if (customerPhone != $none) #customerPhone: customerPhone,
         if (totalAmount != null) #totalAmount: totalAmount,
         if (paymentStatus != null) #paymentStatus: paymentStatus,
@@ -220,29 +221,30 @@ class OrderItemMapper extends ClassMapperBase<OrderItem> {
   @override
   final String id = 'OrderItem';
 
-  static int _$itemId(OrderItem v) => v.itemId;
+  static int? _$itemId(OrderItem v) => v.itemId;
   static const Field<OrderItem, int> _f$itemId =
-      Field('itemId', _$itemId, key: r'item_id');
-  static String _$orderId(OrderItem v) => v.orderId;
+      Field('itemId', _$itemId, key: r'item_id', opt: true);
+  static String? _$orderId(OrderItem v) => v.orderId;
   static const Field<OrderItem, String> _f$orderId =
-      Field('orderId', _$orderId, key: r'order_id');
-  static int _$dressId(OrderItem v) => v.dressId;
+      Field('orderId', _$orderId, key: r'order_id', opt: true);
+  static int? _$dressId(OrderItem v) => v.dressId;
   static const Field<OrderItem, int> _f$dressId =
-      Field('dressId', _$dressId, key: r'dress_id');
-  static String _$dressName(OrderItem v) => v.dressName;
+      Field('dressId', _$dressId, key: r'dress_id', opt: true);
+  static String? _$dressName(OrderItem v) => v.dressName;
   static const Field<OrderItem, String> _f$dressName =
-      Field('dressName', _$dressName, key: r'dress_name');
-  static String _$sizeName(OrderItem v) => v.sizeName;
+      Field('dressName', _$dressName, key: r'dress_name', opt: true);
+  static String? _$sizeName(OrderItem v) => v.sizeName;
   static const Field<OrderItem, String> _f$sizeName =
-      Field('sizeName', _$sizeName, key: r'size_name');
-  static int _$quantity(OrderItem v) => v.quantity;
+      Field('sizeName', _$sizeName, key: r'size_name', opt: true);
+  static int? _$quantity(OrderItem v) => v.quantity;
   static const Field<OrderItem, int> _f$quantity =
-      Field('quantity', _$quantity);
-  static double _$price(OrderItem v) => v.price;
-  static const Field<OrderItem, double> _f$price = Field('price', _$price);
-  static double _$subtotal(OrderItem v) => v.subtotal;
+      Field('quantity', _$quantity, opt: true);
+  static double? _$price(OrderItem v) => v.price;
+  static const Field<OrderItem, double> _f$price =
+      Field('price', _$price, opt: true);
+  static double? _$subtotal(OrderItem v) => v.subtotal;
   static const Field<OrderItem, double> _f$subtotal =
-      Field('subtotal', _$subtotal);
+      Field('subtotal', _$subtotal, opt: true);
 
   @override
   final MappableFields<OrderItem> fields = const {
@@ -341,23 +343,23 @@ class _OrderItemCopyWithImpl<$R, $Out>
       OrderItemMapper.ensureInitialized();
   @override
   $R call(
-          {int? itemId,
-          String? orderId,
-          int? dressId,
-          String? dressName,
-          String? sizeName,
-          int? quantity,
-          double? price,
-          double? subtotal}) =>
+          {Object? itemId = $none,
+          Object? orderId = $none,
+          Object? dressId = $none,
+          Object? dressName = $none,
+          Object? sizeName = $none,
+          Object? quantity = $none,
+          Object? price = $none,
+          Object? subtotal = $none}) =>
       $apply(FieldCopyWithData({
-        if (itemId != null) #itemId: itemId,
-        if (orderId != null) #orderId: orderId,
-        if (dressId != null) #dressId: dressId,
-        if (dressName != null) #dressName: dressName,
-        if (sizeName != null) #sizeName: sizeName,
-        if (quantity != null) #quantity: quantity,
-        if (price != null) #price: price,
-        if (subtotal != null) #subtotal: subtotal
+        if (itemId != $none) #itemId: itemId,
+        if (orderId != $none) #orderId: orderId,
+        if (dressId != $none) #dressId: dressId,
+        if (dressName != $none) #dressName: dressName,
+        if (sizeName != $none) #sizeName: sizeName,
+        if (quantity != $none) #quantity: quantity,
+        if (price != $none) #price: price,
+        if (subtotal != $none) #subtotal: subtotal
       }));
   @override
   OrderItem $make(CopyWithData data) => OrderItem(

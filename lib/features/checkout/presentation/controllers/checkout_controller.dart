@@ -40,14 +40,46 @@ class CheckoutController extends _$CheckoutController {
 
     try {
       final apiService = ref.read(apiServiceProvider);
+      
+      // Convert items to simple JSON format
+      final itemsJson = items.map((e) => e.toSimpleJson()).toList();
+      
+      print('DEBUG: Sending items: $itemsJson');
+      
       final response = await apiService.createOrder(
         customerName: state.customerName,
         customerEmail: state.customerEmail,
         customerPhone: state.customerPhone.isEmpty ? null : state.customerPhone,
-        items: items.map((e) => e.toJson()).toList(),
+        items: itemsJson,
       );
 
-      final order = Order.fromMap(response['order']);
+      // DEBUG: Print full response
+      print('DEBUG: Full response: $response');
+      print('DEBUG: Response keys: ${response?.keys.toList()}');
+      print('DEBUG: Response type: ${response.runtimeType}');
+
+      // Check if response is valid
+      if (response == null) {
+        state = state.copyWith(
+          error: 'Invalid response from server',
+          isCreatingOrder: false,
+        );
+        return false;
+      }
+
+      // Try different possible keys for order data
+      final orderData = response['order'] ?? response['data'] ?? response;
+      print('DEBUG: Order data: $orderData');
+      
+      if (orderData == null || orderData is! Map) {
+        state = state.copyWith(
+          error: 'No order data in response',
+          isCreatingOrder: false,
+        );
+        return false;
+      }
+
+      final order = Order.fromMap(orderData as Map<String, dynamic>);
 
       state = state.copyWith(
         currentOrder: order,
@@ -78,6 +110,14 @@ class CheckoutController extends _$CheckoutController {
         amount: state.currentOrder!.totalAmount,
       );
 
+      if (response == null) {
+        state = state.copyWith(
+          error: 'Invalid payment response',
+          isProcessingPayment: false,
+        );
+        return false;
+      }
+
       state = state.copyWith(
         clientSecret: response['client_secret'],
         paymentIntentId: response['payment_intent_id'],
@@ -107,6 +147,14 @@ class CheckoutController extends _$CheckoutController {
         orderId: state.currentOrder!.orderId,
         paymentIntentId: state.paymentIntentId!,
       );
+
+      if (response == null) {
+        state = state.copyWith(
+          error: 'Invalid payment confirmation response',
+          isProcessingPayment: false,
+        );
+        return false;
+      }
 
       state = state.copyWith(
         paymentSuccessful: true,

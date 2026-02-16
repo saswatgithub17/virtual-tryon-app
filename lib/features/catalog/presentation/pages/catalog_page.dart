@@ -5,10 +5,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/network/api_config.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/app_config.dart';
-import 'package:virtual_tryon_app/features/catalog/data/models/dress_model.dart';
+import '../../data/models/dress_model.dart';
 import '../controllers/catalog_controller.dart';
 import '../../../cart/presentation/cart_controller.dart';
 import '../../../../core/router/app_router.dart';
+import '../../../../widgets/bottom_nav_bar.dart';
 
 @RoutePage()
 class CatalogPage extends ConsumerStatefulWidget {
@@ -20,7 +21,6 @@ class CatalogPage extends ConsumerStatefulWidget {
 
 class _CatalogPageState extends ConsumerState<CatalogPage> {
   final TextEditingController _searchController = TextEditingController();
-  int _selectedNavIndex = 0;
 
   @override
   void dispose() {
@@ -40,7 +40,14 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
         ],
       ),
       floatingActionButton: _buildTryOnFAB(),
-      bottomNavigationBar: _buildBottomNav(),
+      bottomNavigationBar: AppBottomNavBar(
+        currentIndex: 0,
+        onTap: (index) {
+          if (index == 1) {
+            context.router.push(const CartRoute());
+          }
+        },
+      ),
     );
   }
 
@@ -54,7 +61,7 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
         Consumer(
           builder: (context, ref, child) {
             final cartItems = ref.watch(cartControllerProvider);
-            final itemCount = cartItems.length;
+            final itemCount = cartItems.fold<int>(0, (sum, item) => sum + (item.quantity ?? 1));
             return Stack(
               children: [
                 IconButton(
@@ -76,7 +83,7 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
                         minHeight: 16,
                       ),
                       child: Text(
-                        itemCount.toString(),
+                        itemCount > 9 ? '9+' : itemCount.toString(),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 10,
@@ -205,7 +212,8 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
   Widget _buildDressCard(Dress dress) {
     return GestureDetector(
       onTap: () {
-        // Navigate to detail
+        // Navigate to dress detail page
+        context.router.push(DressDetailRoute(dress: dress));
       },
       child: Card(
         elevation: 2,
@@ -255,23 +263,6 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
       backgroundColor: AppTheme.secondaryColor,
       icon: const Icon(Icons.camera_alt),
       label: const Text('Try On'),
-    );
-  }
-
-  Widget _buildBottomNav() {
-    return BottomNavigationBar(
-      currentIndex: _selectedNavIndex,
-      onTap: (index) {
-        setState(() => _selectedNavIndex = index);
-        if (index == 1) context.router.push(const TryOnRoute());
-        if (index == 2) context.router.push(const CartRoute());
-      },
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-        BottomNavigationBarItem(icon: Icon(Icons.camera_alt), label: 'Try On'),
-        BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Cart'),
-      ],
-      selectedItemColor: AppTheme.primaryColor,
     );
   }
 }

@@ -4,6 +4,8 @@ import 'package:auto_route/auto_route.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:virtual_tryon_app/features/catalog/data/models/dress_model.dart';
 import 'package:virtual_tryon_app/features/cart/presentation/cart_controller.dart';
+import 'package:virtual_tryon_app/features/tryon/presentation/controllers/tryon_controller.dart';
+import 'package:virtual_tryon_app/features/tryon/data/camera_service.dart';
 import 'package:virtual_tryon_app/core/theme/app_theme.dart';
 import 'package:virtual_tryon_app/core/network/api_config.dart';
 import 'package:virtual_tryon_app/core/router/app_router.dart';
@@ -152,6 +154,61 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                     ],
                   ),
                   const SizedBox(height: 24),
+                  // Additional dress details
+                  if (widget.dress.brand != null) ...[
+                    const SizedBox(height: 24),
+                    const Text('Brand',
+                        style:
+                            TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 12),
+                    Text(widget.dress.brand!,
+                        style: TextStyle(fontSize: 15, color: Colors.grey[700])),
+                  ],
+                  if (widget.dress.color != null) ...[
+                    const SizedBox(height: 24),
+                    const Text('Color',
+                        style:
+                            TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 12),
+                    Text(widget.dress.color!,
+                        style: TextStyle(fontSize: 15, color: Colors.grey[700])),
+                  ],
+                  if (widget.dress.material != null) ...[
+                    const SizedBox(height: 24),
+                    const Text('Material',
+                        style:
+                            TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 12),
+                    Text(widget.dress.material!,
+                        style: TextStyle(fontSize: 15, color: Colors.grey[700])),
+                  ],
+                  if (widget.dress.averageRating != null) ...[
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        const Text('Rating',
+                            style:
+                                TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const SizedBox(width: 12),
+                        ...List.generate(5, (index) {
+                          final rating = widget.dress.averageRating!;
+                          return Icon(
+                            index < rating.floor()
+                                ? Icons.star
+                                : (index < rating ? Icons.star_half : Icons.star_border),
+                            color: Colors.amber,
+                            size: 20,
+                          );
+                        }),
+                        const SizedBox(width: 8),
+                        Text(
+                          '(${widget.dress.totalReviews ?? 0} reviews)',
+                          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 24),
                   const Text('Description',
                       style:
                           TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -177,30 +234,60 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton.icon(
-                  onPressed: () =>
-                      context.router.push(CameraRoute(dress: widget.dress)),
-                  icon: const Icon(Icons.camera_alt),
-                  label: const Text('Try On Virtually'),
-                  style: ElevatedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16))),
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 56,
+                      child: ElevatedButton.icon(
+                        onPressed: _startTryOn,
+                        icon: const Icon(Icons.camera_alt),
+                        label: const Text('Take Photo'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 56,
+                      child: ElevatedButton.icon(
+                        onPressed: _uploadImageForTryOn,
+                        icon: const Icon(Icons.upload_file),
+                        label: const Text('Upload'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor.withOpacity(0.8),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 height: 56,
-                child: OutlinedButton(
+                child: ElevatedButton.icon(
                   onPressed: _addToCart,
-                  style: OutlinedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                      side: const BorderSide(color: AppTheme.primaryColor)),
-                  child: const Text('Add to Cart'),
+                  icon: const Icon(Icons.shopping_cart),
+                  label: const Text('Add to Cart'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.secondaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -217,5 +304,42 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
           size: _sizes[_selectedSize],
         );
     Helpers.showSuccess(context, 'Added to cart!');
+  }
+
+  void _startTryOn() {
+    // Pre-select this dress and navigate to camera for try-on
+    ref.read(tryOnControllerProvider.notifier).clearSelection();
+    ref.read(tryOnControllerProvider.notifier).toggleDressSelection(widget.dress);
+    context.router.push(CameraRoute(dress: widget.dress));
+  }
+
+  Future<void> _uploadImageForTryOn() async {
+    try {
+      final cameraService = CameraService();
+      final PickedImage? image = await cameraService.pickFromGallery();
+      
+      if (image != null && mounted) {
+        // Validate the image
+        final error = await cameraService.validateImage(image);
+        if (error != null) {
+          if (mounted) Helpers.showError(context, error);
+          return;
+        }
+        
+        // Pre-select this dress and set the user photo
+        ref.read(tryOnControllerProvider.notifier).clearSelection();
+        ref.read(tryOnControllerProvider.notifier).toggleDressSelection(widget.dress);
+        ref.read(tryOnControllerProvider.notifier).setUserPhoto(image);
+        
+        // Navigate to try-on page
+        if (mounted) {
+          context.router.push(const TryOnRoute());
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Helpers.showError(context, 'Failed to upload image');
+      }
+    }
   }
 }

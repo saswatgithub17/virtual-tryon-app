@@ -5,8 +5,8 @@ part 'order_model.mapper.dart';
 @MappableClass(caseStyle: CaseStyle.snakeCase)
 class Order with OrderMappable {
   final String orderId;
-  final String customerName;
-  final String customerEmail;
+  final String? customerName;
+  final String? customerEmail;
   final String? customerPhone;
   final double totalAmount;
   final String paymentStatus;
@@ -18,8 +18,8 @@ class Order with OrderMappable {
 
   Order({
     required this.orderId,
-    required this.customerName,
-    required this.customerEmail,
+    this.customerName,
+    this.customerEmail,
     this.customerPhone,
     required this.totalAmount,
     required this.paymentStatus,
@@ -40,24 +40,24 @@ class Order with OrderMappable {
 
 @MappableClass(caseStyle: CaseStyle.snakeCase)
 class OrderItem with OrderItemMappable {
-  final int itemId;
-  final String orderId;
-  final int dressId;
-  final String dressName;
-  final String sizeName;
-  final int quantity;
-  final double price;
-  final double subtotal;
+  final int? itemId;
+  final String? orderId;
+  final int? dressId;
+  final String? dressName;
+  final String? sizeName;
+  final int? quantity;
+  final double? price;
+  final double? subtotal;
 
   OrderItem({
-    required this.itemId,
-    required this.orderId,
-    required this.dressId,
-    required this.dressName,
-    required this.sizeName,
-    required this.quantity,
-    required this.price,
-    required this.subtotal,
+    this.itemId,
+    this.orderId,
+    this.dressId,
+    this.dressName,
+    this.sizeName,
+    this.quantity,
+    this.price,
+    this.subtotal,
   });
 
   static const fromMap = OrderItemMapper.fromMap;

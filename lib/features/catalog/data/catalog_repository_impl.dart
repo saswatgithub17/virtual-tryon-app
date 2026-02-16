@@ -2,6 +2,7 @@ import '../domain/catalog_repository.dart';
 import 'package:virtual_tryon_app/features/catalog/data/models/dress_model.dart';
 import '../data/models/review_model.dart';
 import '../../../../core/network/api_service.dart';
+import '../data/models/dress_response.dart';
 
 class CatalogRepositoryImpl implements CatalogRepository {
   final ApiService _apiService;
@@ -14,11 +15,7 @@ class CatalogRepositoryImpl implements CatalogRepository {
       if (category != null) 'category': category,
       if (query != null) 'q': query,
     });
-
-    if (response is List) {
-      return response.map((json) => Dress.fromJson(json)).toList();
-    }
-    return [];
+    return DressResponse.fromMap(response).data;
   }
 
   @override
@@ -29,7 +26,6 @@ class CatalogRepositoryImpl implements CatalogRepository {
     }
     return null;
   }
-
 
   @override
   Future<List<Review>> getReviews(int dressId) async {

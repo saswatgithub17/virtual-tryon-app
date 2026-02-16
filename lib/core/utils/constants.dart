@@ -94,7 +94,7 @@ class Constants {
   static const String passwordMismatch = 'Passwords do not match';
 
   // Time Constants
-  static const int splashDuration = 3; // seconds
+  static const int splashDuration = 5; // seconds
   static const int searchDebounce = 500; // milliseconds
   static const int requestTimeout = 30; // seconds
   static const int tryOnTimeout = 120; // seconds

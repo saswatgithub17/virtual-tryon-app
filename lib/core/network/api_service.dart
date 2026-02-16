@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:riverpod/riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:virtual_tryon_app/features/tryon/data/camera_service.dart';
 import 'api_config.dart';
 
 part 'api_service.g.dart';
@@ -98,15 +100,80 @@ class ApiService {
 
   // Virtual Try-On
   Future<dynamic> processTryOn({
-    required File userPhoto,
+    required PickedImage userPhoto,
     required List<int> dressIds,
   }) async {
-    return uploadMultipart(
-      ApiConfig.processImage,
-      userPhoto,
-      {'dressIds': dressIds.join(',')},
-      'person_image',
-    );
+    // Debug: Print what's being sent
+    print('DEBUG: Sending dressIds: $dressIds');
+    print('DEBUG: dressIds length: ${dressIds.length}');
+    
+    // Try as a JSON array string
+    final dressIdsString = jsonEncode(dressIds);
+    print('DEBUG: JSON encoded dressIds: $dressIdsString');
+    
+    // Handle web vs mobile differently
+    if (kIsWeb && userPhoto.bytes != null) {
+      // For web, we need to use bytes
+      try {
+        final url = Uri.parse(ApiConfig.getFullUrl(ApiConfig.processImage));
+        var request = http.MultipartRequest('POST', url);
+        
+        // Try with JSON array string
+        request.fields.addAll({'dress_ids': dressIdsString});
+        
+        request.files.add(http.MultipartFile.fromBytes(
+          'userPhoto',
+          userPhoto.bytes!,
+          filename: userPhoto.name.isNotEmpty ? userPhoto.name : 'photo.jpg',
+          contentType: MediaType('image', 'jpeg'),
+        ));
+        
+        print('DEBUG: Sending request to $url');
+        print('DEBUG: Fields: ${request.fields}');
+        
+        final streamedResponse = await request.send().timeout(ApiConfig.timeout);
+        final response = await http.Response.fromStream(streamedResponse);
+        
+        print('DEBUG: Response status: ${response.statusCode}');
+        print('DEBUG: Response body: ${response.body}');
+        
+        return _handleResponse(response);
+      } catch (e) {
+        print('DEBUG: Error: $e');
+        throw _handleError(e);
+      }
+    } else if (userPhoto.path != null) {
+      // For mobile, use the file path
+      try {
+        final url = Uri.parse(ApiConfig.getFullUrl(ApiConfig.processImage));
+        var request = http.MultipartRequest('POST', url);
+        
+        // Try with JSON array string
+        request.fields.addAll({'dress_ids': dressIdsString});
+        
+        request.files.add(await http.MultipartFile.fromPath(
+          'userPhoto',
+          userPhoto.path!,
+          contentType: MediaType('image', 'jpeg'),
+        ));
+        
+        print('DEBUG: Sending request to $url');
+        print('DEBUG: Fields: ${request.fields}');
+        
+        final streamedResponse = await request.send().timeout(ApiConfig.timeout);
+        final response = await http.Response.fromStream(streamedResponse);
+        
+        print('DEBUG: Response status: ${response.statusCode}');
+        print('DEBUG: Response body: ${response.body}');
+        
+        return _handleResponse(response);
+      } catch (e) {
+        print('DEBUG: Error: $e');
+        throw _handleError(e);
+      }
+    } else {
+      throw Exception('No valid image data available');
+    }
   }
 
   // Create Order

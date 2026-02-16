@@ -22,4 +22,16 @@ class CartItem with CartItemMappable {
 
   // Custom toJson to match legacy expectaitons if needed,
   // but dart_mappable's toMap will work fine.
+  
+  /// Convert to simple JSON for API calls - backend expects this format
+  Map<String, dynamic> toSimpleJson() {
+    return {
+      'dress_id': dress.dressId,
+      'name': dress.name,
+      'price': dress.price,
+      'size': selectedSize,
+      'quantity': quantity,
+      'image_url': dress.imageUrl,
+    };
+  }
 }

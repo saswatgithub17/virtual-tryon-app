@@ -63,7 +63,7 @@ class ApiConfig {
   /// Try-On Endpoints
   static const String tryOn = '$baseUrl/tryon';
   static const String uploadImage = '$tryOn/upload';
-  static const String processImage = '$tryOn/process';
+  static const String processImage = '$tryOn';  // Direct /api/tryon endpoint
   static const String saveTryOnResult = '$tryOn/save';
 
   /// Reviews Endpoints
@@ -80,13 +80,13 @@ class ApiConfig {
   // API CONFIGURATION
   // =================================================================
 
-  /// Request timeout duration
-  static const Duration timeout = Duration(seconds: 30);
-  static const Duration connectTimeout = Duration(seconds: 15);
-  static const Duration receiveTimeout = Duration(seconds: 30);
+  /// Request timeout duration - 10 minutes for AI processing
+  static const Duration timeout = Duration(minutes: 10);
+  static const Duration connectTimeout = Duration(minutes: 5);
+  static const Duration receiveTimeout = Duration(minutes: 10);
 
-  /// ADDED: Standard timeout for API calls
-  static const Duration standardTimeout = Duration(seconds: 30);
+  /// ADDED: Standard timeout for API calls - 10 minutes for AI processing
+  static const Duration standardTimeout = Duration(minutes: 10);
 
   /// API Headers
   static Map<String, String> get headers => {
@@ -141,6 +141,13 @@ class ApiConfig {
     // Remove leading slash if present
     if (imagePath.startsWith('/')) {
       imagePath = imagePath.substring(1);
+    }
+
+    // Check if path already contains /uploads/ to avoid doubling
+    if (imagePath.startsWith('uploads/')) {
+      // Get base URL without /api
+      final baseUrlWithoutApi = baseUrl.replaceAll('/api', '');
+      return '$baseUrlWithoutApi/$imagePath';
     }
 
     // Get base URL without /api

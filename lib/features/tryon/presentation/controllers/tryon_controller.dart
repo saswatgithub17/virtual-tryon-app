@@ -1,7 +1,7 @@
-import 'dart:io';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:virtual_tryon_app/features/catalog/data/models/dress_model.dart';
 import 'package:virtual_tryon_app/features/tryon/data/models/tryon_model.dart';
+import 'package:virtual_tryon_app/features/tryon/data/camera_service.dart';
 import 'package:virtual_tryon_app/core/network/api_service.dart';
 
 part 'tryon_controller.g.dart';
@@ -13,7 +13,7 @@ class TryOnController extends _$TryOnController {
     return const TryOnState();
   }
 
-  void setUserPhoto(File? photo) {
+  void setUserPhoto(PickedImage? photo) {
     state = state.copyWith(userPhoto: photo, error: null);
   }
 
@@ -72,18 +72,30 @@ class TryOnController extends _$TryOnController {
         dressIds: dressIds,
       );
 
-      final results = (response['results'] as List)
-          .map((r) => TryOnResult.fromMap(r))
-          .toList();
+      // Parse the response using TryOnResponse
+      final tryOnResponse = TryOnResponse.fromMap(response as Map<String, dynamic>);
+      
+      // Get successful results
+      final results = tryOnResponse.results ?? [];
+      final successfulResults = results.where((r) => r.success && r.displayUrl != null).toList();
+
+      // Build status message
+      String statusMessage;
+      if (tryOnResponse.success) {
+        statusMessage = 'Try-on completed for ${successfulResults.length}/${tryOnResponse.totalDresses ?? results.length} dresses';
+      } else {
+        statusMessage = tryOnResponse.message ?? 'Try-on failed';
+      }
 
       state = state.copyWith(
-        results: results,
+        results: successfulResults,
         progress: 1.0,
-        statusMessage: 'Try-on complete!',
+        statusMessage: statusMessage,
         hasProcessed: true,
         isProcessing: false,
       );
-      return true;
+      
+      return successfulResults.isNotEmpty;
     } catch (e) {
       state = state.copyWith(
         error: e.toString(),
@@ -101,7 +113,7 @@ class TryOnController extends _$TryOnController {
 }
 
 class TryOnState {
-  final File? userPhoto;
+  final PickedImage? userPhoto;
   final List<Dress> selectedDresses;
   final List<TryOnResult> results;
   final bool isProcessing;
@@ -122,7 +134,7 @@ class TryOnState {
   });
 
   TryOnState copyWith({
-    File? userPhoto,
+    PickedImage? userPhoto,
     List<Dress>? selectedDresses,
     List<TryOnResult>? results,
     bool? isProcessing,

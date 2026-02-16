@@ -6,9 +6,6 @@ import 'core/theme/app_theme.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // TODO: Initialize Stripe when ready
-  // await StripeService.init();
-
   runApp(
     const ProviderScope(
       child: MyApp(),
@@ -16,18 +13,23 @@ void main() async {
   );
 }
 
-class MyApp extends ConsumerWidget {
+class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final appRouter = AppRouter();
+  ConsumerState<MyApp> createState() => _MyAppState();
+}
 
+class _MyAppState extends ConsumerState<MyApp> {
+  final AppRouter _appRouter = AppRouter();
+
+  @override
+  Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'AuraTry',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      routerConfig: appRouter.config(),
+      routerConfig: _appRouter.config(),
     );
   }
 }

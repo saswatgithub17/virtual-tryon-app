@@ -6,7 +6,7 @@ part of 'tryon_controller.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$tryOnControllerHash() => r'989c08396eb19b9cfdd02548bb5803c7ed374382';
+String _$tryOnControllerHash() => r'd9545be68f5c5feea60bf488967fbf6fecd06ee3';
 
 /// See also [TryOnController].
 @ProviderFor(TryOnController)

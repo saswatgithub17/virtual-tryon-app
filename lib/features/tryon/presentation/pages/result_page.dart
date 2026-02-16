@@ -6,6 +6,7 @@ import 'package:virtual_tryon_app/core/network/api_config.dart';
 import 'package:virtual_tryon_app/core/theme/app_theme.dart';
 import 'package:virtual_tryon_app/core/utils/helpers.dart';
 import 'package:virtual_tryon_app/features/tryon/presentation/controllers/tryon_controller.dart';
+import 'package:virtual_tryon_app/features/tryon/data/models/tryon_model.dart';
 import 'package:virtual_tryon_app/core/router/app_router.dart';
 
 @RoutePage()
@@ -77,22 +78,32 @@ class _ResultPageState extends ConsumerState<ResultPage> {
     );
   }
 
-  Widget _buildResultCard(dynamic result) {
+  Widget _buildResultCard(TryOnResult result) {
+    // Get the best available URL
+    final imageUrl = result.displayUrl;
+    
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
           Expanded(
             child: Hero(
-              tag: 'result_${result.dressId}',
+              tag: 'result_${result.dressIndex ?? result.dressId}',
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
-                child: CachedNetworkImage(
-                  imageUrl: ApiConfig.getUploadUrl(result.resultUrl),
-                  fit: BoxFit.contain,
-                  placeholder: (context, url) => const Center(
-                      child: CircularProgressIndicator(color: Colors.white)),
-                ),
+                child: imageUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: ApiConfig.getUploadUrl(imageUrl),
+                        fit: BoxFit.contain,
+                        placeholder: (context, url) => const Center(
+                            child: CircularProgressIndicator(color: Colors.white)),
+                        errorWidget: (context, url, error) => const Center(
+                          child: Icon(Icons.error, color: Colors.white, size: 48),
+                        ),
+                      )
+                    : const Center(
+                        child: Icon(Icons.image_not_supported, color: Colors.white, size: 48),
+                      ),
               ),
             ),
           ),
@@ -103,7 +114,7 @@ class _ResultPageState extends ConsumerState<ResultPage> {
                 color: Colors.white, borderRadius: BorderRadius.circular(16)),
             child: Column(
               children: [
-                Text(result.dressName,
+                Text(result.dressName ?? 'Dress',
                     style: const TextStyle(
                         fontSize: 20, fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center),
@@ -126,7 +137,7 @@ class _ResultPageState extends ConsumerState<ResultPage> {
                               ? AppTheme.successColor
                               : AppTheme.warningColor),
                       const SizedBox(width: 6),
-                      Text(result.aiGenerated ? 'AI Generated' : 'Preview Mode',
+                      Text(result.method ?? (result.aiGenerated ? 'AI Generated' : 'Preview Mode'),
                           style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,

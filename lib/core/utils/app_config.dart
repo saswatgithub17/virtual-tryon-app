@@ -87,7 +87,7 @@ class AppConfig {
   static const int maxReviewLength = 500;
 
   // Image Settings
-  static const int maxImageSizeMB = 5;
+  static const int maxImageSizeMB = 10;
   static const int imageQuality = 80; // 0-100
   static const int maxImageWidth = 1080;
   static const int maxImageHeight = 1920;

@@ -24,7 +24,7 @@ class _CameraPageState extends ConsumerState<CameraPage>
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
 
-  File? _capturedImage;
+  PickedImage? _capturedImage;
   bool _isProcessing = false;
 
   @override
@@ -186,7 +186,9 @@ class _CameraPageState extends ConsumerState<CameraPage>
         Center(
           child: Hero(
               tag: 'captured_image',
-              child: Image.file(_capturedImage!, fit: BoxFit.contain)),
+              child: _capturedImage!.isWeb
+                  ? Image.memory(_capturedImage!.bytes!, fit: BoxFit.contain)
+                  : Image.file(File(_capturedImage!.path!), fit: BoxFit.contain)),
         ),
         Positioned(
           top: 0,

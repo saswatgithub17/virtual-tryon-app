@@ -99,8 +99,7 @@ class _ReceiptPageState extends ConsumerState<ReceiptPage>
                     const SizedBox(height: 40),
                     _buildOrderDetailsCard(checkoutState),
                     const SizedBox(height: 24),
-                    if (checkoutState.receiptUrl != null)
-                      _buildReceiptCard(checkoutState),
+                    _buildReceiptCard(checkoutState),
                   ],
                 ),
               ),
@@ -134,10 +133,17 @@ class _ReceiptPageState extends ConsumerState<ReceiptPage>
           const Divider(height: 24),
           _buildDetailRow('Amount Paid', formattedTotal, Icons.payments),
           const Divider(height: 24),
-          _buildDetailRow('Payment Method', 'Stripe', Icons.credit_card),
+          _buildDetailRow('Payment Method', 'Stripe/UPI', Icons.credit_card),
+          const Divider(height: 24),
+          _buildDetailRow('Date', _getCurrentDate(), Icons.calendar_today),
         ],
       ),
     );
+  }
+
+  String _getCurrentDate() {
+    final now = DateTime.now();
+    return '${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}';
   }
 
   Widget _buildDetailRow(String label, String value, IconData icon) {
@@ -186,7 +192,7 @@ class _ReceiptPageState extends ConsumerState<ReceiptPage>
               const Icon(Icons.description, color: AppTheme.primaryColor),
               const SizedBox(width: 12),
               const Expanded(
-                  child: Text('Receipt Available',
+                  child: Text('Receipt Details',
                       style: TextStyle(
                           fontSize: 16, fontWeight: FontWeight.bold))),
               Container(
@@ -199,9 +205,73 @@ class _ReceiptPageState extends ConsumerState<ReceiptPage>
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          const Text('Your receipt is ready to download',
-              style: TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
+          const SizedBox(height: 16),
+          
+          // Order items
+          if (state.currentOrder?.items != null && state.currentOrder!.items.isNotEmpty) ...[
+            ...state.currentOrder!.items.map((item) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                children: [
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.checkroom, color: AppTheme.primaryColor),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.dressName ?? 'Product',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          'Qty: ${item.quantity ?? 0}',
+                          style: const TextStyle(
+                            fontSize: 12, 
+                            color: AppTheme.textSecondary
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    '₹${(item.subtotal ?? 0).toStringAsFixed(2)}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            )),
+            const Divider(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Total',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                Text(
+                  '₹${state.currentOrder?.totalAmount.toStringAsFixed(2) ?? "0.00"}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold, 
+                    fontSize: 18,
+                    color: AppTheme.primaryColor
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            const Text(
+              'Your receipt is ready to download',
+              style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+            ),
+          ],
         ],
       ),
     );
@@ -223,18 +293,17 @@ class _ReceiptPageState extends ConsumerState<ReceiptPage>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (state.receiptUrl != null)
-              ElevatedButton.icon(
-                onPressed: () => Helpers.showSuccess(
-                    context, 'Receipt: ${state.receiptUrl}'),
-                icon: const Icon(Icons.download),
-                label: const Text('Download Receipt'),
-                style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12))),
-              ),
+            // Download Receipt Button
+            ElevatedButton.icon(
+              onPressed: () => _downloadReceipt(state),
+              icon: const Icon(Icons.download),
+              label: const Text('Download Receipt'),
+              style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  minimumSize: const Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12))),
+            ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: () => context.router.popUntilRoot(),
@@ -248,6 +317,66 @@ class _ReceiptPageState extends ConsumerState<ReceiptPage>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _downloadReceipt(CheckoutState state) async {
+    // Show a dialog to simulate download (in a real app, this would generate PDF)
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.description, color: AppTheme.primaryColor),
+            SizedBox(width: 12),
+            Text('Download Receipt'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Order Receipt'),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Order ID: ${state.currentOrder?.orderId ?? "N/A"}'),
+                  Text('Amount: ₹${state.currentOrder?.totalAmount.toStringAsFixed(2) ?? "0.00"}'),
+                  Text('Date: ${_getCurrentDate()}'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              '📄 Your receipt is being prepared for download...\n\nIn a production app, this would generate a PDF receipt.',
+              style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Helpers.showSuccess(context, 'Receipt downloaded successfully!');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.successColor,
+            ),
+            child: const Text('Download'),
+          ),
+        ],
       ),
     );
   }
