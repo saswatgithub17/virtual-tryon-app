@@ -12,7 +12,7 @@ class ApiConfig {
 
   /// For Physical Device (WiFi) - USE YOUR COMPUTER'S IP ADDRESS
   /// To find your IP: Run 'ipconfig' on Windows or 'ifconfig' on Mac/Linux
-  static const String baseUrl = 'http://10.30.29.1:5000/api';
+  static const String baseUrl = 'http://10.36.74.1:5000/api';
 
   /// For Localhost testing (only works on emulator/simulator)
   // static const String baseUrl = 'http://localhost:5000/api';
