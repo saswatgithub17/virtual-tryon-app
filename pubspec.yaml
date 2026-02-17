@@ -38,6 +38,11 @@ dependencies:
   syncfusion_flutter_pdfviewer: ^27.2.5
   url_launcher: ^6.3.2
   uuid: ^4.3.3
+  # New packages added
+  lottie: ^3.1.0
+  sqflite: ^2.3.2
+  path_provider: ^2.1.2
+  path: ^1.9.0
 
 dev_dependencies:
   auto_route_generator: ^10.2.3

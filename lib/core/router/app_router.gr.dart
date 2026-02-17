@@ -11,6 +11,38 @@
 part of 'app_router.dart';
 
 /// generated route for
+/// [AdminDashboardPage]
+class AdminDashboardRoute extends PageRouteInfo<void> {
+  const AdminDashboardRoute({List<PageRouteInfo>? children})
+      : super(AdminDashboardRoute.name, initialChildren: children);
+
+  static const String name = 'AdminDashboardRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const AdminDashboardPage();
+    },
+  );
+}
+
+/// generated route for
+/// [AdminLoginPage]
+class AdminLoginRoute extends PageRouteInfo<void> {
+  const AdminLoginRoute({List<PageRouteInfo>? children})
+      : super(AdminLoginRoute.name, initialChildren: children);
+
+  static const String name = 'AdminLoginRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const AdminLoginPage();
+    },
+  );
+}
+
+/// generated route for
 /// [CameraPage]
 class CameraRoute extends PageRouteInfo<CameraRouteArgs> {
   CameraRoute({Key? key, Dress? dress, List<PageRouteInfo>? children})
