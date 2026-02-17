@@ -21,56 +21,22 @@ class AppBottomNavBar extends ConsumerWidget {
       selectedItemColor: AppTheme.primaryColor,
       unselectedItemColor: Colors.grey,
       type: BottomNavigationBarType.fixed,
-      items: [
-        const BottomNavigationBarItem(
+      items: const [
+        BottomNavigationBarItem(
           icon: Icon(Icons.home_outlined),
           activeIcon: Icon(Icons.home),
           label: 'Home',
         ),
         BottomNavigationBarItem(
-          icon: _buildCartIcon(ref, false),
-          activeIcon: _buildCartIcon(ref, true),
+          icon: Icon(Icons.checkroom_outlined),
+          activeIcon: Icon(Icons.checkroom),
+          label: 'Try On',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.shopping_cart_outlined),
+          activeIcon: Icon(Icons.shopping_cart),
           label: 'Cart',
         ),
-      ],
-    );
-  }
-
-  Widget _buildCartIcon(WidgetRef ref, bool isActive) {
-    final cartItems = ref.watch(cartControllerProvider);
-    final itemCount = cartItems.fold<int>(0, (sum, item) => sum + (item.quantity ?? 1));
-
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Icon(
-          isActive ? Icons.shopping_cart : Icons.shopping_cart_outlined,
-        ),
-        if (itemCount > 0)
-          Positioned(
-            right: -6,
-            top: -6,
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
-                color: AppTheme.secondaryColor,
-                shape: BoxShape.circle,
-              ),
-              constraints: const BoxConstraints(
-                minWidth: 16,
-                minHeight: 16,
-              ),
-              child: Text(
-                itemCount > 9 ? '9+' : itemCount.toString(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
       ],
     );
   }
@@ -112,87 +78,25 @@ class FloatingBottomNavBar extends ConsumerWidget {
           backgroundColor: Colors.white,
           elevation: 0,
           type: BottomNavigationBarType.fixed,
-          items: [
-            const BottomNavigationBarItem(
+          items: const [
+            BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined),
               activeIcon: Icon(Icons.home),
               label: 'Home',
             ),
-            _buildCartNavItem(ref),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.checkroom_outlined),
+              activeIcon: Icon(Icons.checkroom),
+              label: 'Try On',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.shopping_cart_outlined),
+              activeIcon: Icon(Icons.shopping_cart),
+              label: 'Cart',
+            ),
           ],
         ),
       ),
-    );
-  }
-
-  BottomNavigationBarItem _buildCartNavItem(WidgetRef ref) {
-    final cartItems = ref.watch(cartControllerProvider);
-    final itemCount = cartItems.fold<int>(0, (sum, item) => sum + (item.quantity ?? 1));
-
-    return BottomNavigationBarItem(
-      icon: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          const Icon(Icons.shopping_cart_outlined),
-          if (itemCount > 0)
-            Positioned(
-              right: -6,
-              top: -6,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                  color: AppTheme.secondaryColor,
-                  shape: BoxShape.circle,
-                ),
-                constraints: const BoxConstraints(
-                  minWidth: 16,
-                  minHeight: 16,
-                ),
-                child: Text(
-                  itemCount > 9 ? '9+' : itemCount.toString(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-        ],
-      ),
-      activeIcon: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          const Icon(Icons.shopping_cart),
-          if (itemCount > 0)
-            Positioned(
-              right: -6,
-              top: -6,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                  color: AppTheme.secondaryColor,
-                  shape: BoxShape.circle,
-                ),
-                constraints: const BoxConstraints(
-                  minWidth: 16,
-                  minHeight: 16,
-                ),
-                child: Text(
-                  itemCount > 9 ? '9+' : itemCount.toString(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-        ],
-      ),
-      label: 'Cart',
     );
   }
 }

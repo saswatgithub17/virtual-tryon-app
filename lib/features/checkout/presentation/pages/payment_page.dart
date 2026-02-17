@@ -679,6 +679,14 @@ class _PaymentPageState extends ConsumerState<PaymentPage>
 
     final controller = ref.read(checkoutControllerProvider.notifier);
 
+    // Create payment intent with Stripe
+    final intentSuccess = await controller.createPaymentIntent(paymentMethod: 'stripe');
+    if (!intentSuccess && mounted) {
+      Helpers.showError(context,
+          ref.read(checkoutControllerProvider).error ?? 'Failed to create payment');
+      return;
+    }
+
     // Simulate real delay
     await Future.delayed(const Duration(seconds: 1));
 
@@ -720,10 +728,20 @@ class _PaymentPageState extends ConsumerState<PaymentPage>
 
     if (confirmed == true && mounted) {
       final controller = ref.read(checkoutControllerProvider.notifier);
-      final success = await controller.confirmPayment();
+      
+      // For UPI, we create a payment intent with 'upi' method
+      final intentSuccess = await controller.createPaymentIntent(paymentMethod: 'upi');
+      if (!intentSuccess && mounted) {
+        Helpers.showError(context,
+            ref.read(checkoutControllerProvider).error ?? 'Failed to create payment');
+        return;
+      }
+      
+      // For UPI, we mark as successful since user confirmed payment
+      final success = await controller.confirmUpiPayment();
       if (success && mounted) {
         ref.read(cartControllerProvider.notifier).clearCart();
-        // Navigate to Thank You page first, then to receipt
+        // Navigate to Thank You page
         context.router.push(const ThankYouRoute());
       } else if (mounted) {
         Helpers.showError(context,

@@ -95,7 +95,7 @@ class CheckoutController extends _$CheckoutController {
     }
   }
 
-  Future<bool> createPaymentIntent() async {
+  Future<bool> createPaymentIntent({String paymentMethod = 'stripe'}) async {
     if (state.currentOrder == null) {
       state = state.copyWith(error: 'No order found');
       return false;
@@ -108,6 +108,7 @@ class CheckoutController extends _$CheckoutController {
       final response = await apiService.createPaymentIntent(
         orderId: state.currentOrder!.orderId,
         amount: state.currentOrder!.totalAmount,
+        paymentMethod: paymentMethod,
       );
 
       if (response == null) {
@@ -121,6 +122,7 @@ class CheckoutController extends _$CheckoutController {
       state = state.copyWith(
         clientSecret: response['client_secret'],
         paymentIntentId: response['payment_intent_id'],
+        paymentMethod: paymentMethod,
         isProcessingPayment: false,
       );
       return true;
@@ -172,6 +174,33 @@ class CheckoutController extends _$CheckoutController {
     }
   }
 
+  // For UPI/QR payments - just mark as successful since payment is done externally
+  Future<bool> confirmUpiPayment() async {
+    if (state.currentOrder == null) {
+      state = state.copyWith(error: 'No order found');
+      return false;
+    }
+
+    state = state.copyWith(isProcessingPayment: true, error: null);
+
+    try {
+      // For UPI payments, we consider it successful immediately after user confirms
+      // In a real app, you'd verify with the backend
+      state = state.copyWith(
+        paymentSuccessful: true,
+        isProcessingPayment: false,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        error: e.toString(),
+        paymentSuccessful: false,
+        isProcessingPayment: false,
+      );
+      return false;
+    }
+  }
+
   void reset() {
     state = const CheckoutState();
   }
@@ -184,6 +213,7 @@ class CheckoutState {
   final Order? currentOrder;
   final String? clientSecret;
   final String? paymentIntentId;
+  final String paymentMethod;
   final bool isProcessingPayment;
   final bool paymentSuccessful;
   final String? receiptUrl;
@@ -197,6 +227,7 @@ class CheckoutState {
     this.currentOrder,
     this.clientSecret,
     this.paymentIntentId,
+    this.paymentMethod = 'stripe',
     this.isProcessingPayment = false,
     this.paymentSuccessful = false,
     this.receiptUrl,
@@ -211,6 +242,7 @@ class CheckoutState {
     Order? currentOrder,
     String? clientSecret,
     String? paymentIntentId,
+    String? paymentMethod,
     bool? isProcessingPayment,
     bool? paymentSuccessful,
     String? receiptUrl,
@@ -224,6 +256,7 @@ class CheckoutState {
       currentOrder: currentOrder ?? this.currentOrder,
       clientSecret: clientSecret ?? this.clientSecret,
       paymentIntentId: paymentIntentId ?? this.paymentIntentId,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
       isProcessingPayment: isProcessingPayment ?? this.isProcessingPayment,
       paymentSuccessful: paymentSuccessful ?? this.paymentSuccessful,
       receiptUrl: receiptUrl ?? this.receiptUrl,

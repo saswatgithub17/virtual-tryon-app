@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:auto_route/auto_route.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:virtual_tryon_app/core/theme/app_theme.dart';
 import 'package:virtual_tryon_app/core/utils/helpers.dart';
 import 'package:virtual_tryon_app/features/checkout/presentation/controllers/checkout_controller.dart';
@@ -19,6 +22,8 @@ class _ReceiptPageState extends ConsumerState<ReceiptPage>
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
+
+  bool _isDownloading = false;
 
   @override
   void initState() {
@@ -133,7 +138,7 @@ class _ReceiptPageState extends ConsumerState<ReceiptPage>
           const Divider(height: 24),
           _buildDetailRow('Amount Paid', formattedTotal, Icons.payments),
           const Divider(height: 24),
-          _buildDetailRow('Payment Method', 'Stripe/UPI', Icons.credit_card),
+          _buildDetailRow('Payment Method', state.paymentMethod == 'upi' ? 'UPI QR Code' : 'Stripe Card', Icons.credit_card),
           const Divider(height: 24),
           _buildDetailRow('Date', _getCurrentDate(), Icons.calendar_today),
         ],
@@ -232,7 +237,7 @@ class _ReceiptPageState extends ConsumerState<ReceiptPage>
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                         Text(
-                          'Qty: ${item.quantity ?? 0}',
+                          'Size: ${item.sizeName ?? "N/A"} | Qty: ${item.quantity ?? 0}',
                           style: const TextStyle(
                             fontSize: 12, 
                             color: AppTheme.textSecondary
@@ -293,16 +298,42 @@ class _ReceiptPageState extends ConsumerState<ReceiptPage>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Download Receipt Button
-            ElevatedButton.icon(
-              onPressed: () => _downloadReceipt(state),
-              icon: const Icon(Icons.download),
-              label: const Text('Download Receipt'),
-              style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12))),
+            // Download/Share Receipt Buttons
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isDownloading ? null : () => _shareReceipt(state),
+                    icon: _isDownloading 
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.share),
+                    label: Text(_isDownloading ? 'Sharing...' : 'Share Receipt'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isDownloading ? null : () => _downloadReceipt(state),
+                    icon: const Icon(Icons.download),
+                    label: const Text('Save to Device'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
@@ -321,63 +352,170 @@ class _ReceiptPageState extends ConsumerState<ReceiptPage>
     );
   }
 
+  Future<void> _shareReceipt(CheckoutState state) async {
+    setState(() {
+      _isDownloading = true;
+    });
+
+    try {
+      // Generate receipt content
+      final receiptContent = _generateReceiptText(state);
+      
+      // Get temp directory
+      final directory = await getTemporaryDirectory();
+      final orderId = state.currentOrder?.orderId ?? 'receipt';
+      final fileName = 'receipt_$orderId.txt';
+      final filePath = '${directory.path}/$fileName';
+      
+      // Write the file
+      final file = File(filePath);
+      await file.writeAsString(receiptContent);
+      
+      // Share the file
+      await Share.shareXFiles(
+        [XFile(filePath)],
+        text: 'Order Receipt from Aura Try',
+        subject: 'Receipt - Order #$orderId',
+      );
+      
+      if (mounted) {
+        setState(() {
+          _isDownloading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isDownloading = false;
+        });
+        Helpers.showError(context, 'Failed to share receipt: $e');
+      }
+    }
+  }
+
   Future<void> _downloadReceipt(CheckoutState state) async {
-    // Show a dialog to simulate download (in a real app, this would generate PDF)
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.description, color: AppTheme.primaryColor),
-            SizedBox(width: 12),
-            Text('Download Receipt'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Order Receipt'),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Order ID: ${state.currentOrder?.orderId ?? "N/A"}'),
-                  Text('Amount: ₹${state.currentOrder?.totalAmount.toStringAsFixed(2) ?? "0.00"}'),
-                  Text('Date: ${_getCurrentDate()}'),
-                ],
-              ),
+    setState(() {
+      _isDownloading = true;
+    });
+
+    try {
+      // Generate receipt content
+      final receiptContent = _generateReceiptText(state);
+      
+      // Get the downloads directory
+      final directory = await getApplicationDocumentsDirectory();
+      final orderId = state.currentOrder?.orderId ?? 'receipt';
+      final fileName = 'receipt_$orderId.txt';
+      final filePath = '${directory.path}/$fileName';
+      
+      // Write the file
+      final file = File(filePath);
+      await file.writeAsString(receiptContent);
+      
+      if (mounted) {
+        setState(() {
+          _isDownloading = false;
+        });
+        
+        // Show success message with option to share
+        showModalBottomSheet(
+          context: context,
+          builder: (context) => Container(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_circle, color: AppTheme.successColor, size: 60),
+                const SizedBox(height: 16),
+                const Text('Receipt Saved!',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text('Saved as: $fileName',
+                    style: const TextStyle(color: AppTheme.textSecondary)),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _shareReceipt(state);
+                        },
+                        icon: const Icon(Icons.share),
+                        label: const Text('Share'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.done),
+                        label: const Text('Done'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            const Text(
-              '📄 Your receipt is being prepared for download...\n\nIn a production app, this would generate a PDF receipt.',
-              style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Helpers.showSuccess(context, 'Receipt downloaded successfully!');
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.successColor,
-            ),
-            child: const Text('Download'),
-          ),
-        ],
-      ),
-    );
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isDownloading = false;
+        });
+        Helpers.showError(context, 'Failed to download receipt: $e');
+      }
+    }
+  }
+
+  String _generateReceiptText(CheckoutState state) {
+    final order = state.currentOrder;
+    final orderId = order?.orderId ?? 'N/A';
+    final totalAmount = order?.totalAmount ?? 0.0;
+    final date = _getCurrentDate();
+    final paymentMethod = state.paymentMethod == 'upi' ? 'UPI QR Code' : 'Stripe Card';
+    
+    final buffer = StringBuffer();
+    buffer.writeln('═══════════════════════════════════════════');
+    buffer.writeln('              AURA TRY - RECEIPT            ');
+    buffer.writeln('═══════════════════════════════════════════');
+    buffer.writeln();
+    buffer.writeln('Order ID: $orderId');
+    buffer.writeln('Date: $date');
+    buffer.writeln('Payment Method: $paymentMethod');
+    buffer.writeln();
+    buffer.writeln('───────────────────────────────────────────');
+    buffer.writeln('ITEMS');
+    buffer.writeln('───────────────────────────────────────────');
+    
+    if (order?.items != null && order!.items.isNotEmpty) {
+      for (final item in order.items) {
+        final name = item.dressName ?? 'Product';
+        final size = item.sizeName ?? 'N/A';
+        final qty = item.quantity ?? 0;
+        final price = item.subtotal ?? 0.0;
+        buffer.writeln('$name');
+        buffer.writeln('  Size: $size | Qty: $qty');
+        buffer.writeln('  Price: ₹${price.toStringAsFixed(2)}');
+        buffer.writeln();
+      }
+    } else {
+      buffer.writeln('No items found');
+      buffer.writeln();
+    }
+    
+    buffer.writeln('───────────────────────────────────────────');
+    buffer.writeln('TOTAL: ₹${totalAmount.toStringAsFixed(2)}');
+    buffer.writeln('═══════════════════════════════════════════');
+    buffer.writeln();
+    buffer.writeln('Thank you for shopping with Aura Try!');
+    buffer.writeln('For support: support@virtualtryon.com');
+    buffer.writeln();
+    buffer.writeln('This is a computer-generated receipt.');
+    buffer.writeln('No signature required.');
+    
+    return buffer.toString();
   }
 }

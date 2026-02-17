@@ -277,3 +277,19 @@ class TryOnRoute extends PageRouteInfo<void> {
     },
   );
 }
+
+/// generated route for
+/// [TryOnSelectionPage]
+class TryOnSelectionRoute extends PageRouteInfo<void> {
+  const TryOnSelectionRoute({List<PageRouteInfo>? children})
+      : super(TryOnSelectionRoute.name, initialChildren: children);
+
+  static const String name = 'TryOnSelectionRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const TryOnSelectionPage();
+    },
+  );
+}

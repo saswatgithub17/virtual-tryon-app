@@ -39,11 +39,13 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
           Expanded(child: _buildDressGrid()),
         ],
       ),
-      floatingActionButton: _buildTryOnFAB(),
       bottomNavigationBar: AppBottomNavBar(
         currentIndex: 0,
         onTap: (index) {
           if (index == 1) {
+            // Try On - navigate to TryOnSelectionPage
+            context.router.push(const TryOnSelectionRoute());
+          } else if (index == 2) {
             context.router.push(const CartRoute());
           }
         },
@@ -57,47 +59,11 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
         AppConfig.appName,
         style: TextStyle(fontWeight: FontWeight.bold),
       ),
-      actions: [
-        Consumer(
-          builder: (context, ref, child) {
-            final cartItems = ref.watch(cartControllerProvider);
-            final itemCount = cartItems.fold<int>(0, (sum, item) => sum + (item.quantity ?? 1));
-            return Stack(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.shopping_cart_outlined),
-                  onPressed: () => context.router.push(const CartRoute()),
-                ),
-                if (itemCount > 0)
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: AppTheme.secondaryColor,
-                        shape: BoxShape.circle,
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      child: Text(
-                        itemCount > 9 ? '9+' : itemCount.toString(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(width: 8),
+      backgroundColor: AppTheme.primaryColor,
+      foregroundColor: Colors.white,
+      elevation: 0,
+      actions: const [
+        SizedBox(width: 8),
       ],
     );
   }
@@ -105,6 +71,7 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
   Widget _buildSearchBar() {
     return Container(
       padding: const EdgeInsets.all(16),
+      color: AppTheme.primaryColor,
       child: TextField(
         controller: _searchController,
         decoration: InputDecoration(
@@ -123,7 +90,10 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
               : null,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
           ),
+          filled: true,
+          fillColor: Colors.white,
         ),
         onChanged: (value) {
           // Debounce logic
@@ -254,15 +224,6 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildTryOnFAB() {
-    return FloatingActionButton.extended(
-      onPressed: () => context.router.push(const TryOnRoute()),
-      backgroundColor: AppTheme.secondaryColor,
-      icon: const Icon(Icons.camera_alt),
-      label: const Text('Try On'),
     );
   }
 }

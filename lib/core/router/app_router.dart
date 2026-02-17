@@ -9,6 +9,7 @@ import 'package:virtual_tryon_app/features/checkout/presentation/pages/payment_p
 import 'package:virtual_tryon_app/features/checkout/presentation/pages/receipt_page.dart';
 import 'package:virtual_tryon_app/features/checkout/presentation/pages/thank_you_page.dart';
 import 'package:virtual_tryon_app/features/tryon/presentation/pages/tryon_page.dart';
+import 'package:virtual_tryon_app/features/tryon/presentation/pages/tryon_selection_page.dart';
 import 'package:virtual_tryon_app/features/tryon/presentation/pages/camera_page.dart';
 import 'package:virtual_tryon_app/features/tryon/presentation/pages/result_page.dart';
 import 'package:virtual_tryon_app/features/catalog/data/models/dress_model.dart';
@@ -28,6 +29,7 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: ReceiptRoute.page, path: '/receipt'),
         AutoRoute(page: ThankYouRoute.page, path: '/thank-you'),
         AutoRoute(page: TryOnRoute.page, path: '/tryon'),
+        AutoRoute(page: TryOnSelectionRoute.page, path: '/tryon-selection'),
         AutoRoute(page: CameraRoute.page, path: '/camera'),
         AutoRoute(page: ResultRoute.page, path: '/result'),
       ];

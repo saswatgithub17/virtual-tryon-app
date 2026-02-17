@@ -195,11 +195,13 @@ class ApiService {
   Future<dynamic> createPaymentIntent({
     required String orderId,
     required double amount,
+    String paymentMethod = 'stripe',
   }) async {
     return post(ApiConfig.createPaymentIntent, data: {
       'order_id': orderId,
       'amount': (amount * 100).toInt(),
       'currency': 'inr',
+      'payment_method': paymentMethod,
     });
   }
 
