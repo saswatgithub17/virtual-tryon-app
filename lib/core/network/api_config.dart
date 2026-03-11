@@ -12,7 +12,7 @@ class ApiConfig {
 
   /// For Physical Device (WiFi) - USE YOUR COMPUTER'S IP ADDRESS
   /// To find your IP: Run 'ipconfig' on Windows or 'ifconfig' on Mac/Linux
-  static const String baseUrl = 'http://10.36.74.1:5000/api';
+  static const String baseUrl = 'http://10.164.94.1:5000/api';
 
   /// For Localhost testing (only works on emulator/simulator)
   // static const String baseUrl = 'http://localhost:5000/api';
@@ -64,7 +64,7 @@ class ApiConfig {
   /// Try-On Endpoints
   static const String tryOn = '$baseUrl/tryon';
   static const String uploadImage = '$tryOn/upload';
-  static const String processImage = '$tryOn';  // Direct /api/tryon endpoint
+  static const String processImage = '$tryOn'; // Direct /api/tryon endpoint
   static const String saveTryOnResult = '$tryOn/save';
 
   /// Reviews Endpoints
