@@ -11,6 +11,7 @@ class ApiConfig {
   // static const String baseUrl = 'http://10.0.2.2:5000/api';
 
   /// For Physical Device (WiFi) - USE YOUR COMPUTER'S IP ADDRESS
+  /// Make sure to include the server port (default: 5000)
   /// To find your IP: Run 'ipconfig' on Windows or 'ifconfig' on Mac/Linux
   static const String baseUrl = 'http://10.81.185.1/api';
 
