@@ -13,7 +13,7 @@ class ApiConfig {
   /// For Physical Device (WiFi) - USE YOUR COMPUTER'S IP ADDRESS
   /// Make sure to include the server port (default: 5000)
   /// To find your IP: Run 'ipconfig' on Windows or 'ifconfig' on Mac/Linux
-  static const String baseUrl = 'http://10.81.185.1/api';
+  static const String baseUrl = 'http://10.81.185.1:5000/api';
 
   /// For Localhost testing (only works on emulator/simulator)
   // static const String baseUrl = 'http://localhost:5000/api';
