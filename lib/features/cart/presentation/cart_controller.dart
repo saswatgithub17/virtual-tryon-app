@@ -21,7 +21,17 @@ class CartController extends _$CartController {
 
       if (cartData != null) {
         final List<dynamic> decoded = jsonDecode(cartData);
-        state = decoded.map((item) => CartItem.fromJson(item)).toList();
+        // Support both map and json string formats when decoding
+        state = decoded.map((item) {
+          if (item is String) {
+            return CartItem.fromJson(item);
+          } else if (item is Map<String, dynamic>) {
+            return CartItem.fromMap(item);
+          } else {
+            // Fall back to decoding via mapper using the map representation
+            return CartItem.fromMap(Map<String, dynamic>.from(item as Map));
+          }
+        }).toList();
       }
     } catch (e) {
       // Handle error

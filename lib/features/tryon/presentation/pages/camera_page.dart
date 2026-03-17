@@ -31,6 +31,18 @@ class _CameraPageState extends ConsumerState<CameraPage>
   void initState() {
     super.initState();
     _cameraService = CameraService();
+    // If a dress was passed to this page (from selection), ensure TryOnController holds it
+    if (widget.dress != null) {
+      // Delay setting controller until the provider is available
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          ref.read(tryOnControllerProvider.notifier).clearSelection();
+          ref
+              .read(tryOnControllerProvider.notifier)
+              .toggleDressSelection(widget.dress!);
+        } catch (_) {}
+      });
+    }
     _setupAnimations();
   }
 
@@ -188,7 +200,8 @@ class _CameraPageState extends ConsumerState<CameraPage>
               tag: 'captured_image',
               child: _capturedImage!.isWeb
                   ? Image.memory(_capturedImage!.bytes!, fit: BoxFit.contain)
-                  : Image.file(File(_capturedImage!.path!), fit: BoxFit.contain)),
+                  : Image.file(File(_capturedImage!.path!),
+                      fit: BoxFit.contain)),
         ),
         Positioned(
           top: 0,

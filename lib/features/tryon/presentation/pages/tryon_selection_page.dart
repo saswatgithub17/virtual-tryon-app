@@ -7,6 +7,7 @@ import 'package:virtual_tryon_app/core/theme/app_theme.dart';
 import 'package:virtual_tryon_app/features/catalog/data/models/dress_model.dart';
 import 'package:virtual_tryon_app/features/catalog/presentation/controllers/catalog_controller.dart';
 import 'package:virtual_tryon_app/core/router/app_router.dart';
+import 'package:virtual_tryon_app/features/tryon/presentation/controllers/tryon_controller.dart';
 
 @RoutePage()
 class TryOnSelectionPage extends ConsumerStatefulWidget {
@@ -158,10 +159,14 @@ class _TryOnSelectionPageState extends ConsumerState<TryOnSelectionPage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(_useLiveCamera ? Icons.camera_alt : Icons.upload_file),
+                      Icon(_useLiveCamera
+                          ? Icons.camera_alt
+                          : Icons.upload_file),
                       const SizedBox(width: 8),
                       Text(
-                        _useLiveCamera ? 'Start with Live Camera' : 'Start with Upload',
+                        _useLiveCamera
+                            ? 'Start with Live Camera'
+                            : 'Start with Upload',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -260,7 +265,8 @@ class _TryOnSelectionPageState extends ConsumerState<TryOnSelectionPage> {
             mainAxisSpacing: 12,
           ),
           itemCount: dresses.length,
-          itemBuilder: (context, index) => _buildDressSelectCard(dresses[index]),
+          itemBuilder: (context, index) =>
+              _buildDressSelectCard(dresses[index]),
         );
       },
     );
@@ -299,8 +305,7 @@ class _TryOnSelectionPageState extends ConsumerState<TryOnSelectionPage> {
                 height: double.infinity,
                 placeholder: (context, url) =>
                     Container(color: Colors.grey[200]),
-                errorWidget: (context, url, error) =>
-                    const Icon(Icons.error),
+                errorWidget: (context, url, error) => const Icon(Icons.error),
               ),
             ),
             if (isSelected)
@@ -365,7 +370,13 @@ class _TryOnSelectionPageState extends ConsumerState<TryOnSelectionPage> {
       return;
     }
 
-    // Navigate to camera page with selected dresses
+    final tryOnController = ref.read(tryOnControllerProvider.notifier);
+    tryOnController.clearSelection();
+    for (final d in _selectedDresses) {
+      tryOnController.toggleDressSelection(d);
+    }
+
+    // Navigate to camera page with selected dresses (first dress for camera hint)
     context.router.push(CameraRoute(dress: _selectedDresses.first));
   }
 }
