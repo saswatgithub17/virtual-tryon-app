@@ -2,6 +2,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:virtual_tryon_app/features/cart/data/models/cart_model.dart';
 import 'package:virtual_tryon_app/features/checkout/data/models/order_model.dart';
 import 'package:virtual_tryon_app/core/network/api_service.dart';
+import 'package:virtual_tryon_app/core/network/api_config.dart';
 
 part 'checkout_controller.g.dart';
 
@@ -40,12 +41,12 @@ class CheckoutController extends _$CheckoutController {
 
     try {
       final apiService = ref.read(apiServiceProvider);
-      
+
       // Convert items to simple JSON format
       final itemsJson = items.map((e) => e.toSimpleJson()).toList();
-      
+
       print('DEBUG: Sending items: $itemsJson');
-      
+
       final response = await apiService.createOrder(
         customerName: state.customerName,
         customerEmail: state.customerEmail,
@@ -70,7 +71,7 @@ class CheckoutController extends _$CheckoutController {
       // Try different possible keys for order data
       final orderData = response['order'] ?? response['data'] ?? response;
       print('DEBUG: Order data: $orderData');
-      
+
       if (orderData == null || orderData is! Map) {
         state = state.copyWith(
           error: 'No order data in response',
@@ -174,7 +175,7 @@ class CheckoutController extends _$CheckoutController {
     }
   }
 
-  // For UPI/QR payments - just mark as successful since payment is done externally
+  // ─── FIX: UPI payment now calls backend to confirm and get PDF receipt URL ───
   Future<bool> confirmUpiPayment() async {
     if (state.currentOrder == null) {
       state = state.copyWith(error: 'No order found');
@@ -184,20 +185,37 @@ class CheckoutController extends _$CheckoutController {
     state = state.copyWith(isProcessingPayment: true, error: null);
 
     try {
-      // For UPI payments, we consider it successful immediately after user confirms
-      // In a real app, you'd verify with the backend
+      final apiService = ref.read(apiServiceProvider);
+
+      // Call backend /payment/confirm with order_id and payment_method=upi.
+      // This triggers receipt PDF generation on the backend and returns receipt_url.
+      final response = await apiService.post(
+        ApiConfig.confirmPayment,
+        data: {
+          'order_id': state.currentOrder!.orderId,
+          'payment_method': 'upi',
+        },
+      );
+
+      print('DEBUG UPI confirm response: $response');
+
       state = state.copyWith(
         paymentSuccessful: true,
+        // receipt_url comes back as '/uploads/receipts/receipt-ORD-xxx.pdf'
+        receiptUrl: response?['receipt_url'] ?? response?['receiptUrl'],
         isProcessingPayment: false,
       );
       return true;
     } catch (e) {
+      print('DEBUG UPI confirm error: $e');
+      // Payment was already made by user — mark success even if backend call fails,
+      // but receipt URL will be null (handled gracefully in receipt_page).
       state = state.copyWith(
-        error: e.toString(),
-        paymentSuccessful: false,
+        paymentSuccessful: true,
         isProcessingPayment: false,
+        error: null,
       );
-      return false;
+      return true;
     }
   }
 
