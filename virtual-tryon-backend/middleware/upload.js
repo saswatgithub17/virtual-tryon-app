@@ -1,105 +1,75 @@
-// =============================================
-// FILE UPLOAD MIDDLEWARE
-// Using Multer for image uploads
-// =============================================
-
+// FILE UPLOAD MIDDLEWARE — Multer
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Create uploads directory if it doesn't exist
-const uploadsDir = './uploads/dresses';
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-}
+// Ensure upload directories exist
+['./uploads/dresses', './uploads/user-photos', './uploads/tryon-results', './uploads/receipts'].forEach(dir => {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+});
 
-const userPhotosDir = './uploads/user-photos';
-if (!fs.existsSync(userPhotosDir)) {
-    fs.mkdirSync(userPhotosDir, { recursive: true });
-}
-
-const tryonResultsDir = './uploads/tryon-results';
-if (!fs.existsSync(tryonResultsDir)) {
-    fs.mkdirSync(tryonResultsDir, { recursive: true });
-}
-
-// Configure storage for dress images
+// Storage for dress images
 const dressStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, uploadsDir);
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, 'dress-' + uniqueSuffix + path.extname(file.originalname));
-    }
+  destination: (_req, _file, cb) => cb(null, './uploads/dresses'),
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    cb(null, `dress-${uniqueSuffix}${path.extname(file.originalname)}`);
+  }
 });
 
-// Configure storage for user photos (try-on)
+// Storage for user photos (try-on)
 const userPhotoStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, userPhotosDir);
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, 'user-' + uniqueSuffix + path.extname(file.originalname));
-    }
+  destination: (_req, _file, cb) => cb(null, './uploads/user-photos'),
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    cb(null, `user-${uniqueSuffix}${path.extname(file.originalname)}`);
+  }
 });
 
-// File filter - only accept images
-const imageFilter = (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|webp/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-
-    if (extname && mimetype) {
-        cb(null, true);
-    } else {
-        cb(new Error('Only image files are allowed (jpeg, jpg, png, gif, webp)'));
-    }
+// Accept images only
+const imageFilter = (_req, file, cb) => {
+  const allowedTypes = /jpeg|jpg|png|gif|webp/;
+  const extOk = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  const mimeOk = allowedTypes.test(file.mimetype);
+  if (extOk && mimeOk) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image files are allowed (jpeg, jpg, png, gif, webp)'));
+  }
 };
 
-// Multer configuration for dress images
+// Fix 10: raise limit to 10MB to match Flutter camera_service.dart (was 5MB).
+// Flutter's CameraService validates up to 10MB before sending — mismatched
+// limits caused large photos to pass client validation then be silently
+// rejected by the server, leaving try-on with no useful error message.
+const FILE_SIZE_LIMIT = 10 * 1024 * 1024; // 10MB
+
 const uploadDressImage = multer({
-    storage: dressStorage,
-    limits: {
-        fileSize: 5 * 1024 * 1024 // 5MB limit
-    },
-    fileFilter: imageFilter
+  storage: dressStorage,
+  limits: { fileSize: FILE_SIZE_LIMIT },
+  fileFilter: imageFilter
 }).single('image');
 
-// Multer configuration for user photos
 const uploadUserPhoto = multer({
-    storage: userPhotoStorage,
-    limits: {
-        fileSize: 5 * 1024 * 1024 // 5MB limit
-    },
-    fileFilter: imageFilter
+  storage: userPhotoStorage,
+  limits: { fileSize: FILE_SIZE_LIMIT },
+  fileFilter: imageFilter
 }).single('userPhoto');
 
-// Error handling middleware for multer
-const handleUploadError = (err, req, res, next) => {
-    if (err instanceof multer.MulterError) {
-        if (err.code === 'LIMIT_FILE_SIZE') {
-            return res.status(400).json({
-                success: false,
-                message: 'File size is too large. Maximum size is 5MB.'
-            });
-        }
-        return res.status(400).json({
-            success: false,
-            message: err.message
-        });
-    } else if (err) {
-        return res.status(400).json({
-            success: false,
-            message: err.message
-        });
+// Multer error handler
+const handleUploadError = (err, _req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        message: `File too large. Maximum size is ${FILE_SIZE_LIMIT / (1024 * 1024)}MB.`
+      });
     }
-    next();
+    return res.status(400).json({ success: false, message: err.message });
+  } else if (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+  next();
 };
 
-module.exports = {
-    uploadDressImage,
-    uploadUserPhoto,
-    handleUploadError
-};
+module.exports = { uploadDressImage, uploadUserPhoto, handleUploadError };

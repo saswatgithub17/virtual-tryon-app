@@ -4,12 +4,9 @@ import 'package:auto_route/auto_route.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:virtual_tryon_app/features/catalog/data/models/dress_model.dart';
 import 'package:virtual_tryon_app/features/cart/presentation/cart_controller.dart';
-import 'package:virtual_tryon_app/features/tryon/presentation/controllers/tryon_controller.dart';
-import 'package:virtual_tryon_app/features/tryon/data/camera_service.dart';
 import 'package:virtual_tryon_app/core/theme/app_theme.dart';
 import 'package:virtual_tryon_app/core/network/api_config.dart';
 import 'package:virtual_tryon_app/core/router/app_router.dart';
-import 'package:virtual_tryon_app/core/utils/helpers.dart';
 
 @RoutePage()
 class DressDetailPage extends ConsumerStatefulWidget {
@@ -25,11 +22,10 @@ class DressDetailPage extends ConsumerStatefulWidget {
 }
 
 class _DressDetailPageState extends ConsumerState<DressDetailPage> {
-  int _selectedSize = 1; // Default to 'S'
+  int _selectedSize = 1;
   final List<String> _sizes = ['XS', 'S', 'M', 'L', 'XL'];
   int _quantity = 1;
 
-  // ─── Check whether current dress + size combo is already in cart ──────────
   bool _isInCart(List cartItems) {
     return cartItems.any((item) =>
         item.dress.dressId == widget.dress.dressId &&
@@ -38,7 +34,6 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Watch cart so button updates reactively when size changes or cart is modified
     final cartItems = ref.watch(cartControllerProvider);
 
     return Scaffold(
@@ -87,7 +82,8 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                             const SizedBox(height: 4),
                             Text(widget.dress.category ?? 'Dress',
                                 style: TextStyle(
-                                    fontSize: 14, color: Colors.grey[600])),
+                                    fontSize: 14,
+                                    color: Colors.grey[600])),
                           ],
                         ),
                       ),
@@ -174,7 +170,8 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                     const SizedBox(height: 24),
                     const Text('Brand',
                         style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold)),
                     const SizedBox(height: 12),
                     Text(widget.dress.brand!,
                         style: TextStyle(
@@ -184,7 +181,8 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                     const SizedBox(height: 24),
                     const Text('Color',
                         style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold)),
                     const SizedBox(height: 12),
                     Text(widget.dress.color!,
                         style: TextStyle(
@@ -194,7 +192,8 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                     const SizedBox(height: 24),
                     const Text('Material',
                         style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold)),
                     const SizedBox(height: 12),
                     Text(widget.dress.material!,
                         style: TextStyle(
@@ -240,13 +239,14 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                           'No description available.',
                       style: TextStyle(
                           fontSize: 15, color: Colors.grey[700])),
-                  const SizedBox(height: 120),
+                  const SizedBox(height: 100),
                 ],
               ),
             ),
           ),
         ],
       ),
+      // Fix 1: Only Add to Cart / Go to Cart — Take Photo & Upload removed
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(color: Colors.white, boxShadow: [
@@ -256,83 +256,33 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
               offset: const Offset(0, -5))
         ]),
         child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Try-on buttons row
-              Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 56,
-                      child: ElevatedButton.icon(
-                        onPressed: _startTryOn,
-                        icon: const Icon(Icons.camera_alt),
-                        label: const Text('Take Photo'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryColor,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                      ),
+          child: SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: _isInCart(cartItems)
+                ? ElevatedButton.icon(
+                    onPressed: () =>
+                        context.router.push(const CartRoute()),
+                    icon: const Icon(Icons.shopping_cart),
+                    label: const Text('Go to Cart'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.successColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                    ),
+                  )
+                : ElevatedButton.icon(
+                    onPressed: _addToCart,
+                    icon: const Icon(Icons.shopping_cart_outlined),
+                    label: const Text('Add to Cart'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.secondaryColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SizedBox(
-                      height: 56,
-                      child: ElevatedButton.icon(
-                        onPressed: _uploadImageForTryOn,
-                        icon: const Icon(Icons.upload_file),
-                        label: const Text('Upload'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              AppTheme.primaryColor.withOpacity(0.8),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // ─── Add to Cart / Go to Cart button ────────────────────
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: _isInCart(cartItems)
-                    ? ElevatedButton.icon(
-                        onPressed: () =>
-                            context.router.push(const CartRoute()),
-                        icon: const Icon(Icons.shopping_cart),
-                        label: const Text('Go to Cart'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.successColor,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                      )
-                    : ElevatedButton.icon(
-                        onPressed: _addToCart,
-                        icon: const Icon(Icons.shopping_cart_outlined),
-                        label: const Text('Add to Cart'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.secondaryColor,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                      ),
-              ),
-            ],
           ),
         ),
       ),
@@ -345,44 +295,5 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
           quantity: _quantity,
           size: _sizes[_selectedSize],
         );
-    // No snackbar here — button visually changes to "Go to Cart"
-    // which is a clearer signal than a transient toast
-  }
-
-  void _startTryOn() {
-    ref.read(tryOnControllerProvider.notifier).clearSelection();
-    ref
-        .read(tryOnControllerProvider.notifier)
-        .toggleDressSelection(widget.dress);
-    context.router.push(CameraRoute(dress: widget.dress));
-  }
-
-  Future<void> _uploadImageForTryOn() async {
-    try {
-      final cameraService = CameraService();
-      final PickedImage? image = await cameraService.pickFromGallery();
-
-      if (image != null && mounted) {
-        final error = await cameraService.validateImage(image);
-        if (error != null) {
-          if (mounted) Helpers.showError(context, error);
-          return;
-        }
-
-        ref.read(tryOnControllerProvider.notifier).clearSelection();
-        ref
-            .read(tryOnControllerProvider.notifier)
-            .toggleDressSelection(widget.dress);
-        ref.read(tryOnControllerProvider.notifier).setUserPhoto(image);
-
-        if (mounted) {
-          context.router.push(const TryOnRoute());
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        Helpers.showError(context, 'Failed to upload image');
-      }
-    }
   }
 }

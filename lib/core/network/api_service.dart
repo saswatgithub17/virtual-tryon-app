@@ -16,12 +16,10 @@ ApiService apiService(Ref ref) {
 }
 
 class ApiService {
-  // Headers
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
       };
 
-  // GET Request
   Future<dynamic> get(String endpoint,
       {Map<String, String>? queryParameters}) async {
     try {
@@ -32,43 +30,40 @@ class ApiService {
       final response = await http
           .get(url, headers: _headers)
           .timeout(ApiConfig.standardTimeout);
-
       return _handleResponse(response);
     } catch (e) {
       throw _handleError(e);
     }
   }
 
-  // GET Request for single dress
   Future<dynamic> getDressById(int dressId) async {
     try {
-      final url = Uri.parse(ApiConfig.getFullUrl('/dresses/$dressId'));
+      final url =
+          Uri.parse(ApiConfig.getFullUrl('/dresses/$dressId'));
       final response = await http
           .get(url, headers: _headers)
           .timeout(ApiConfig.standardTimeout);
-
       return _handleResponse(response);
     } catch (e) {
       throw _handleError(e);
     }
   }
 
-  // POST Request
-  Future<dynamic> post(String endpoint, {Map<String, dynamic>? data}) async {
+  Future<dynamic> post(String endpoint,
+      {Map<String, dynamic>? data}) async {
     try {
       final url = Uri.parse(ApiConfig.getFullUrl(endpoint));
       final response = await http
           .post(url,
-              headers: _headers, body: data != null ? jsonEncode(data) : null)
+              headers: _headers,
+              body: data != null ? jsonEncode(data) : null)
           .timeout(ApiConfig.standardTimeout);
-
       return _handleResponse(response);
     } catch (e) {
       throw _handleError(e);
     }
   }
 
-  // Multipart Request (for file uploads)
   Future<dynamic> uploadMultipart(
     String endpoint,
     File file,
@@ -78,97 +73,68 @@ class ApiService {
     try {
       final url = Uri.parse(ApiConfig.getFullUrl(endpoint));
       var request = http.MultipartRequest('POST', url);
-
-      // Add fields
       request.fields.addAll(fields);
-
-      // Add file
       request.files.add(await http.MultipartFile.fromPath(
         fileFieldName,
         file.path,
         contentType: MediaType('image', 'jpeg'),
       ));
-
-      final streamedResponse = await request.send().timeout(ApiConfig.timeout);
-      final response = await http.Response.fromStream(streamedResponse);
-
+      final streamedResponse =
+          await request.send().timeout(ApiConfig.timeout);
+      final response =
+          await http.Response.fromStream(streamedResponse);
       return _handleResponse(response);
     } catch (e) {
       throw _handleError(e);
     }
   }
 
-  // Virtual Try-On
   Future<dynamic> processTryOn({
     required PickedImage userPhoto,
     required List<int> dressIds,
   }) async {
-    // Debug: Print what's being sent
-    print('DEBUG: Sending dressIds: $dressIds');
-    print('DEBUG: dressIds length: ${dressIds.length}');
-    
-    // Try as a JSON array string
     final dressIdsString = jsonEncode(dressIds);
-    print('DEBUG: JSON encoded dressIds: $dressIdsString');
-    
-    // Handle web vs mobile differently
+    print('DEBUG: Sending dressIds: $dressIdsString');
+
     if (kIsWeb && userPhoto.bytes != null) {
-      // For web, we need to use bytes
       try {
-        final url = Uri.parse(ApiConfig.getFullUrl(ApiConfig.processImage));
+        final url =
+            Uri.parse(ApiConfig.getFullUrl(ApiConfig.processImage));
         var request = http.MultipartRequest('POST', url);
-        
-        // Try with JSON array string
         request.fields.addAll({'dress_ids': dressIdsString});
-        
         request.files.add(http.MultipartFile.fromBytes(
           'userPhoto',
           userPhoto.bytes!,
-          filename: userPhoto.name.isNotEmpty ? userPhoto.name : 'photo.jpg',
+          filename: userPhoto.name.isNotEmpty
+              ? userPhoto.name
+              : 'photo.jpg',
           contentType: MediaType('image', 'jpeg'),
         ));
-        
-        print('DEBUG: Sending request to $url');
-        print('DEBUG: Fields: ${request.fields}');
-        
-        final streamedResponse = await request.send().timeout(ApiConfig.timeout);
-        final response = await http.Response.fromStream(streamedResponse);
-        
-        print('DEBUG: Response status: ${response.statusCode}');
-        print('DEBUG: Response body: ${response.body}');
-        
+        final streamedResponse =
+            await request.send().timeout(ApiConfig.timeout);
+        final response =
+            await http.Response.fromStream(streamedResponse);
         return _handleResponse(response);
       } catch (e) {
-        print('DEBUG: Error: $e');
         throw _handleError(e);
       }
     } else if (userPhoto.path != null) {
-      // For mobile, use the file path
       try {
-        final url = Uri.parse(ApiConfig.getFullUrl(ApiConfig.processImage));
+        final url =
+            Uri.parse(ApiConfig.getFullUrl(ApiConfig.processImage));
         var request = http.MultipartRequest('POST', url);
-        
-        // Try with JSON array string
         request.fields.addAll({'dress_ids': dressIdsString});
-        
         request.files.add(await http.MultipartFile.fromPath(
           'userPhoto',
           userPhoto.path!,
           contentType: MediaType('image', 'jpeg'),
         ));
-        
-        print('DEBUG: Sending request to $url');
-        print('DEBUG: Fields: ${request.fields}');
-        
-        final streamedResponse = await request.send().timeout(ApiConfig.timeout);
-        final response = await http.Response.fromStream(streamedResponse);
-        
-        print('DEBUG: Response status: ${response.statusCode}');
-        print('DEBUG: Response body: ${response.body}');
-        
+        final streamedResponse =
+            await request.send().timeout(ApiConfig.timeout);
+        final response =
+            await http.Response.fromStream(streamedResponse);
         return _handleResponse(response);
       } catch (e) {
-        print('DEBUG: Error: $e');
         throw _handleError(e);
       }
     } else {
@@ -176,7 +142,6 @@ class ApiService {
     }
   }
 
-  // Create Order
   Future<dynamic> createOrder({
     required String customerName,
     required String customerEmail,
@@ -191,7 +156,6 @@ class ApiService {
     });
   }
 
-  // Create Payment Intent
   Future<dynamic> createPaymentIntent({
     required String orderId,
     required double amount,
@@ -205,18 +169,20 @@ class ApiService {
     });
   }
 
-  // Confirm Payment
+  // Fix 3: now sends payment_method so backend saves 'stripe' or 'upi'
+  // correctly in the orders table, which flows into the PDF receipt.
   Future<dynamic> confirmPayment({
     required String orderId,
     required String paymentIntentId,
+    String paymentMethod = 'stripe', // ← added
   }) async {
     return post(ApiConfig.confirmPayment, data: {
       'order_id': orderId,
       'payment_intent_id': paymentIntentId,
+      'payment_method': paymentMethod, // ← sent to backend
     });
   }
 
-  // Handle Response
   dynamic _handleResponse(http.Response response) {
     if (response.statusCode >= 200 && response.statusCode < 400) {
       return jsonDecode(response.body);
@@ -227,7 +193,6 @@ class ApiService {
     }
   }
 
-  // Handle Errors
   String _handleError(dynamic error) {
     if (error is SocketException) {
       return 'No internet connection. Please check your network.';

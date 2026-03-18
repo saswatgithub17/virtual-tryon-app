@@ -7,7 +7,6 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/app_config.dart';
 import '../../data/models/dress_model.dart';
 import '../controllers/catalog_controller.dart';
-import '../../../cart/presentation/cart_controller.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../widgets/bottom_nav_bar.dart';
 
@@ -21,6 +20,66 @@ class CatalogPage extends ConsumerStatefulWidget {
 
 class _CatalogPageState extends ConsumerState<CatalogPage> {
   final TextEditingController _searchController = TextEditingController();
+
+  // Fix 5: 5-tap counter for Home tab (index 0) to open admin login
+  int _homeTapCount = 0;
+  DateTime? _lastHomeTap;
+
+  void _handleBottomNavTap(int index) {
+    if (index == 0) {
+      // Count rapid taps on the Home tab
+      final now = DateTime.now();
+      if (_lastHomeTap != null &&
+          now.difference(_lastHomeTap!).inMilliseconds > 800) {
+        _homeTapCount = 0;
+      }
+      _lastHomeTap = now;
+      _homeTapCount++;
+
+      if (_homeTapCount >= 5) {
+        _homeTapCount = 0;
+        _showAdminDialog();
+      }
+      // index 0 = already on home, no navigation needed
+    } else if (index == 1) {
+      context.router.push(const TryOnRoute());
+    } else if (index == 2) {
+      context.router.push(const CartRoute());
+    }
+  }
+
+  void _showAdminDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.admin_panel_settings,
+                color: AppTheme.primaryColor),
+            SizedBox(width: 8),
+            Text('Admin Access'),
+          ],
+        ),
+        content:
+            const Text('Would you like to access the Admin Dashboard?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              context.router.push(const AdminLoginRoute());
+            },
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor),
+            child: const Text('Go to Admin'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -41,16 +100,7 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
       ),
       bottomNavigationBar: AppBottomNavBar(
         currentIndex: 0,
-        onTap: (index) {
-          if (index == 1) {
-            // ─── Fix: go directly to TryOnRoute — it handles dress
-            //         selection + photo capture on a single page.
-            //         TryOnSelectionPage is removed from this flow. ───
-            context.router.push(const TryOnRoute());
-          } else if (index == 2) {
-            context.router.push(const CartRoute());
-          }
-        },
+        onTap: _handleBottomNavTap,
       ),
     );
   }
@@ -64,9 +114,7 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
       backgroundColor: AppTheme.primaryColor,
       foregroundColor: Colors.white,
       elevation: 0,
-      actions: const [
-        SizedBox(width: 8),
-      ],
+      actions: const [SizedBox(width: 8)],
     );
   }
 
@@ -115,8 +163,9 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
         itemCount: AppConfig.categories.length,
         itemBuilder: (context, index) {
           final category = AppConfig.categories[index];
-          final selectedCategory =
-              ref.watch(catalogControllerProvider.notifier).selectedCategory;
+          final selectedCategory = ref
+              .watch(catalogControllerProvider.notifier)
+              .selectedCategory;
           final isSelected = selectedCategory == category;
 
           return Padding(
@@ -124,16 +173,19 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
             child: ChoiceChip(
               label: Text(category),
               selected: isSelected,
-              onSelected: (selected) {
+              onSelected: (_) {
                 ref
                     .read(catalogControllerProvider.notifier)
                     .setCategory(category);
               },
               selectedColor: AppTheme.primaryColor,
               labelStyle: TextStyle(
-                color: isSelected ? Colors.white : AppTheme.textPrimary,
-                fontWeight:
-                    isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected
+                    ? Colors.white
+                    : AppTheme.textPrimary,
+                fontWeight: isSelected
+                    ? FontWeight.bold
+                    : FontWeight.normal,
               ),
             ),
           );
@@ -146,16 +198,19 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
     final catalogAsync = ref.watch(catalogControllerProvider);
 
     return catalogAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () =>
+          const Center(child: CircularProgressIndicator()),
       error: (err, stack) => Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.grey),
+            const Icon(Icons.error_outline,
+                size: 64, color: Colors.grey),
             const SizedBox(height: 16),
             Text(err.toString(), textAlign: TextAlign.center),
             ElevatedButton(
-              onPressed: () => ref.refresh(catalogControllerProvider),
+              onPressed: () =>
+                  ref.refresh(catalogControllerProvider),
               child: const Text('Retry'),
             ),
           ],
@@ -164,13 +219,12 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
       data: (dresses) {
         if (dresses.isEmpty) {
           return const Center(
-            child: Text(AppConfig.emptySearchMessage),
-          );
+              child: Text(AppConfig.emptySearchMessage));
         }
-
         return GridView.builder(
           padding: const EdgeInsets.all(16),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          gridDelegate:
+              const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             childAspectRatio: 0.7,
             crossAxisSpacing: 16,
@@ -186,26 +240,25 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
 
   Widget _buildDressCard(Dress dress) {
     return GestureDetector(
-      onTap: () {
-        context.router.push(DressDetailRoute(dress: dress));
-      },
+      onTap: () =>
+          context.router.push(DressDetailRoute(dress: dress)),
       child: Card(
         elevation: 2,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               child: ClipRRect(
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(12)),
+                borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(12)),
                 child: CachedNetworkImage(
                   imageUrl: ApiConfig.getUploadUrl(dress.imageUrl),
                   fit: BoxFit.cover,
                   width: double.infinity,
-                  placeholder: (context, url) =>
-                      const Center(child: CircularProgressIndicator()),
+                  placeholder: (context, url) => const Center(
+                      child: CircularProgressIndicator()),
                   errorWidget: (context, url, error) =>
                       const Icon(Icons.error),
                 ),
@@ -217,8 +270,8 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(dress.name,
-                      style:
-                          const TextStyle(fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold),
                       maxLines: 2),
                   const SizedBox(height: 4),
                   Text(AppConfig.formatPriceShort(dress.price),

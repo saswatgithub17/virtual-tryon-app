@@ -1,92 +1,35 @@
-// =============================================
 // ORDER ROUTES
-// Endpoints for order management
-// =============================================
-
 const express = require('express');
 const router = express.Router();
 const orderController = require('../controllers/Ordercontroller');
 const { verifyToken, isAdmin } = require('../middleware/auth');
 
-// =============================================
-// PUBLIC ROUTES (Customer Access)
-// =============================================
+// ─── PUBLIC ROUTES ────────────────────────────────────────────────────────
 
-/**
- * @swagger
- * /api/orders:
- *   post:
- *     summary: Create a new order
- *     tags: [Orders]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - customer_name
- *               - customer_email
- *               - items
- *             properties:
- *               customer_name:
- *                 type: string
- *               customer_email:
- *                 type: string
- *               customer_phone:
- *                 type: string
- *               items:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     dress_id:
- *                       type: integer
- *                     size_name:
- *                       type: string
- *                     quantity:
- *                       type: integer
- *     responses:
- *       201:
- *         description: Order created successfully
- */
-
-// Create new order - POST /api/orders
+// POST /api/orders — create new order
 router.post('/', orderController.createOrder);
 
-// Create new order - POST /api/orders/create (for frontend compatibility)
+// POST /api/orders/create — alias for frontend compatibility
 router.post('/create', orderController.createOrder);
 
-/**
- * @swagger
- * /api/orders/{orderId}:
- *   get:
- *     summary: Get order by ID
- *     tags: [Orders]
- *     parameters:
- *       - in: path
- *         name: orderId
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Order details
- */
-router.get('/:orderId', orderController.getOrderById);
-
-
-// POST /api/orders/calculate - Calculate cart total
+// POST /api/orders/calculate — calculate cart total
+// Fix 6: static paths MUST come before /:orderId
 router.post('/calculate', orderController.calculateTotal);
 
-// =============================================
-// ADMIN ROUTES (Require Authentication)
-// =============================================
+// ─── ADMIN ROUTES (require auth) ─────────────────────────────────────────
 
-// GET /api/orders - Get all orders (Admin only)
+// GET /api/orders/transactions/all — all completed transactions
+// Fix 6: this was AFTER /:orderId so Express treated "transactions" as orderId
+router.get('/transactions/all', verifyToken, isAdmin, orderController.getAllTransactions);
+
+// GET /api/orders — all orders
 router.get('/', verifyToken, isAdmin, orderController.getAllOrders);
 
-// GET /api/orders/transactions/all - Get all transactions (Admin only)
-router.get('/transactions/all', verifyToken, isAdmin, orderController.getAllTransactions);
+// ─── PARAMETERISED ROUTES — always last ──────────────────────────────────
+
+// GET /api/orders/:orderId — get single order by ID
+// Must come after all static paths, otherwise "calculate" and
+// "transactions" would be swallowed as :orderId values.
+router.get('/:orderId', orderController.getOrderById);
 
 module.exports = router;

@@ -28,7 +28,8 @@ class _CartPageState extends ConsumerState<CartPage>
     _animationController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 400));
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-        CurvedAnimation(parent: _animationController, curve: Curves.easeOut));
+        CurvedAnimation(
+            parent: _animationController, curve: Curves.easeOut));
     _animationController.forward();
   }
 
@@ -43,6 +44,10 @@ class _CartPageState extends ConsumerState<CartPage>
     final cartItems = ref.watch(cartControllerProvider);
     final cartController = ref.read(cartControllerProvider.notifier);
 
+    // Fix 11: watch the provider so total updates reactively
+    final totalAmount = ref.watch(cartControllerProvider.notifier
+        .select((c) => c.totalAmount));
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
@@ -54,12 +59,14 @@ class _CartPageState extends ConsumerState<CartPage>
               onPressed: () => _showClearCartDialog(cartController),
               child: const Text('Clear',
                   style: TextStyle(
-                      color: AppTheme.errorColor, fontWeight: FontWeight.w600)),
+                      color: AppTheme.errorColor,
+                      fontWeight: FontWeight.w600)),
             ),
         ],
       ),
       body: cartItems.isEmpty
-          ? EmptyStateWidget.emptyCart(onShop: () => context.router.pop())
+          ? EmptyStateWidget.emptyCart(
+              onShop: () => context.router.pop())
           : FadeTransition(
               opacity: _fadeAnimation,
               child: Column(
@@ -71,8 +78,8 @@ class _CartPageState extends ConsumerState<CartPage>
                       itemBuilder: (context, index) {
                         final item = cartItems[index];
                         return Dismissible(
-                          key:
-                              Key('${item.dress.dressId}_${item.selectedSize}'),
+                          key: Key(
+                              '${item.dress.dressId}_${item.selectedSize}'),
                           background: _buildDismissBackground(
                               Colors.red, Alignment.centerLeft),
                           secondaryBackground: _buildDismissBackground(
@@ -81,40 +88,33 @@ class _CartPageState extends ConsumerState<CartPage>
                               _confirmDelete(item.dress.name),
                           onDismissed: (direction) {
                             cartController.removeItem(index);
-                            Helpers.showSuccess(context, 'Removed from cart');
+                            Helpers.showSuccess(
+                                context, 'Removed from cart');
                           },
                           child: CartItemWidget(
                             item: item,
                             onRemove: () {
                               cartController.removeItem(index);
-                              Helpers.showSuccess(context, 'Removed from cart');
+                              Helpers.showSuccess(
+                                  context, 'Removed from cart');
                             },
-                            onIncrease: () {
-                              // Add increase functionality to controller if needed
-                              // For now just re-add
-                              cartController.addToCart(item.dress,
-                                  quantity: 1, size: item.selectedSize);
-                            },
-                            onDecrease: () {
-                              // Add decrease functionality to controller
-                              cartController.removeItem(index);
-                              if (item.quantity > 1) {
-                                cartController.addToCart(item.dress,
-                                    quantity: item.quantity - 1,
-                                    size: item.selectedSize);
-                              }
-                            },
+                            // Fix 4: use increaseItem / decreaseItem
+                            onIncrease: () =>
+                                cartController.increaseItem(index),
+                            onDecrease: () =>
+                                cartController.decreaseItem(index),
                           ),
                         );
                       },
                     ),
                   ),
-                  _buildSummarySection(cartItems, cartController),
+                  _buildSummarySection(cartItems, totalAmount),
                 ],
               ),
             ),
-      bottomNavigationBar:
-          cartItems.isEmpty ? null : _buildCheckoutButton(cartItems),
+      bottomNavigationBar: cartItems.isEmpty
+          ? null
+          : _buildCheckoutButton(totalAmount),
     );
   }
 
@@ -122,16 +122,17 @@ class _CartPageState extends ConsumerState<CartPage>
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration:
-          BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+          color: color, borderRadius: BorderRadius.circular(12)),
       alignment: alignment,
       child: const Icon(Icons.delete, color: Colors.white, size: 32),
     );
   }
 
-  Widget _buildSummarySection(List<dynamic> items, CartController controller) {
-    final totalAmount = controller.totalAmount;
-    final totalQuantity = controller.totalQuantity;
+  Widget _buildSummarySection(
+      List<dynamic> items, double totalAmount) {
+    final totalQuantity =
+        ref.watch(cartControllerProvider.notifier.select((c) => c.totalQuantity));
 
     return Container(
       margin: const EdgeInsets.all(16),
@@ -142,8 +143,8 @@ class _CartPageState extends ConsumerState<CartPage>
           AppTheme.secondaryColor.withOpacity(0.1),
         ]),
         borderRadius: BorderRadius.circular(16),
-        border:
-            Border.all(color: AppTheme.primaryColor.withOpacity(0.3), width: 2),
+        border: Border.all(
+            color: AppTheme.primaryColor.withOpacity(0.3), width: 2),
       ),
       child: Column(
         children: [
@@ -155,7 +156,8 @@ class _CartPageState extends ConsumerState<CartPage>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('Total',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  style: TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.bold)),
               Text(AppConfig.formatPrice(totalAmount),
                   style: const TextStyle(
                       fontSize: 24,
@@ -173,17 +175,17 @@ class _CartPageState extends ConsumerState<CartPage>
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label,
-            style:
-                const TextStyle(fontSize: 15, color: AppTheme.textSecondary)),
+            style: const TextStyle(
+                fontSize: 15, color: AppTheme.textSecondary)),
         Text(value,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            style: const TextStyle(
+                fontSize: 15, fontWeight: FontWeight.w600)),
       ],
     );
   }
 
-  Widget _buildCheckoutButton(List<dynamic> items) {
-    final totalAmount = ref.read(cartControllerProvider.notifier).totalAmount;
-
+  // Fix 11: receives totalAmount as parameter — already reactive from build()
+  Widget _buildCheckoutButton(double totalAmount) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -206,7 +208,8 @@ class _CartPageState extends ConsumerState<CartPage>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Text('Proceed to Checkout',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  style: TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(width: 8),
               Text(AppConfig.formatPriceShort(totalAmount),
                   style: const TextStyle(
@@ -229,7 +232,8 @@ class _CartPageState extends ConsumerState<CartPage>
   Future<void> _showClearCartDialog(CartController controller) async {
     final confirm = await Helpers.showConfirmDialog(context,
         title: 'Clear Cart',
-        message: 'Are you sure you want to remove all items from cart?',
+        message:
+            'Are you sure you want to remove all items from cart?',
         confirmText: 'Clear All',
         cancelText: 'Cancel');
     if (confirm == true) {
