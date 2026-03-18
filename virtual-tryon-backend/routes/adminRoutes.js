@@ -1,26 +1,42 @@
-// =============================================
-// ADMIN ROUTES
-// Admin authentication and analytics
-// =============================================
-
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/Admincontroller');
 const { verifyToken, isAdmin } = require('../middleware/auth');
+const { uploadDressImage, handleUploadError } = require('../middleware/upload');
 
-// POST /api/admin/login - Admin login
-router.post('/login', adminController.login);
-
-// POST /api/admin/logout - Admin logout
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+router.post('/login',  adminController.login);
 router.post('/logout', verifyToken, adminController.logout);
 
-// GET /api/admin/analytics - Get sales analytics (Admin only)
-router.get('/analytics', verifyToken, isAdmin, adminController.getAnalytics);
+// ─── Stats (live from MySQL) ──────────────────────────────────────────────────
+router.get('/stats', verifyToken, isAdmin, adminController.getStats);
 
-// GET /api/admin/transactions - Get all transactions (Admin only)
-router.get('/transactions', verifyToken, isAdmin, adminController.getAllTransactions);
+// ─── Orders ──────────────────────────────────────────────────────────────────
+router.get('/orders',                    verifyToken, isAdmin, adminController.getAllOrders);
+router.put('/orders/:orderId/complete',  verifyToken, isAdmin, adminController.markOrderComplete);
 
-// GET /api/admin/transactions/:id - Get transaction details (Admin only)
-router.get('/transactions/:id', verifyToken, isAdmin, adminController.getTransactionById);
+// ─── Receipts ─────────────────────────────────────────────────────────────────
+router.get('/receipts', verifyToken, isAdmin, adminController.getAllReceipts);
+
+// ─── Try-On History ───────────────────────────────────────────────────────────
+router.get('/tryon-history', verifyToken, isAdmin, adminController.getTryOnHistory);
+
+// ─── Dresses ──────────────────────────────────────────────────────────────────
+router.get('/dresses',     verifyToken, isAdmin, adminController.getAllDressesWithSizes);
+router.post('/dresses',    verifyToken, isAdmin, adminController.addDress);
+router.put('/dresses/:id', verifyToken, isAdmin, adminController.updateDress);
+
+// Image upload for a dress (separate multipart endpoint)
+router.post(
+  '/dresses/:id/upload-image',
+  verifyToken, isAdmin,
+  uploadDressImage, handleUploadError,
+  adminController.uploadDressImage
+);
+
+// Legacy analytics + transactions (kept for backward compat)
+router.get('/analytics',         verifyToken, isAdmin, adminController.getAnalytics);
+router.get('/transactions',      verifyToken, isAdmin, adminController.getAllTransactions);
+router.get('/transactions/:id',  verifyToken, isAdmin, adminController.getTransactionById);
 
 module.exports = router;

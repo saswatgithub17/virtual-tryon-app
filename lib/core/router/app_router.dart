@@ -14,7 +14,6 @@ import 'package:virtual_tryon_app/features/tryon/presentation/pages/camera_page.
 import 'package:virtual_tryon_app/features/tryon/presentation/pages/result_page.dart';
 import 'package:virtual_tryon_app/features/catalog/data/models/dress_model.dart';
 import 'package:virtual_tryon_app/features/admin/presentation/pages/admin_login_page.dart';
-import 'package:virtual_tryon_app/features/admin/presentation/pages/admin_dashboard_page.dart';
 
 part 'app_router.gr.dart';
 
@@ -34,8 +33,8 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: TryOnSelectionRoute.page, path: '/tryon-selection'),
         AutoRoute(page: CameraRoute.page, path: '/camera'),
         AutoRoute(page: ResultRoute.page, path: '/result'),
-        // Admin routes
+        // AdminDashboard is opened via Navigator.pushReplacement from login,
+        // so it does NOT need an AutoRoute entry.
         AutoRoute(page: AdminLoginRoute.page, path: '/admin-login'),
-        AutoRoute(page: AdminDashboardRoute.page, path: '/admin-dashboard'),
       ];
 }
