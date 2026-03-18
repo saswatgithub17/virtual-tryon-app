@@ -1,6 +1,6 @@
 // =============================================
-// IDM-VTON SERVICE - FINAL WORKING VERSION
-// Proper file handling with Blob format
+// IDM-VTON SERVICE - FIXED VERSION
+// Handles sleeping HF spaces + retry logic
 // =============================================
 
 const { Client } = require("@gradio/client");
@@ -10,181 +10,190 @@ const fs = require('fs');
 const path = require('path');
 
 const HF_API_KEY = process.env.HUGGINGFACE_API_KEY;
-const SPACE_URL = "yisol/IDM-VTON";
+const SPACE_ID = "yisol/IDM-VTON";
+const SPACE_URL = "https://yisol-idm-vton.hf.space";
 
-/**
- * Process Virtual Try-On using IDM-VTON Space
- */
-const processSingleTryOn = async (userImagePath, dressImagePath) => {
+// ─── Wake the sleeping space ──────────────────────────────────────────────────
+const wakeSpace = async () => {
+    console.log('   Waking IDM-VTON space...');
+
+    // Ping the space root to trigger wake-up
     try {
-        console.log('🎨 Processing IDM-VTON try-on...');
-        console.log('   User image:', userImagePath);
-        console.log('   Dress image:', dressImagePath);
-
-        // Validate files exist
-        if (!fs.existsSync(userImagePath)) {
-            throw new Error(`User image not found: ${userImagePath}`);
-        }
-        if (!fs.existsSync(dressImagePath)) {
-            throw new Error(`Dress image not found: ${dressImagePath}`);
-        }
-
-        console.log('   Connecting to IDM-VTON Space...');
-        
-        const client = await Client.connect(SPACE_URL, {
-            hf_token: HF_API_KEY
+        await axios.get(SPACE_URL, {
+            headers: HF_API_KEY ? { 'Authorization': `Bearer ${HF_API_KEY}` } : {},
+            timeout: 30000,
+            validateStatus: () => true
         });
-
-        console.log('   ✅ Connected!');
-        console.log('   Preparing image files...');
-
-        // Read files as buffers
-        const userBuffer = fs.readFileSync(userImagePath);
-        const dressBuffer = fs.readFileSync(dressImagePath);
-
-        // Create Blob objects (this is what Gradio expects)
-        const userBlob = new Blob([userBuffer], { type: 'image/jpeg' });
-        const dressBlob = new Blob([dressBuffer], { type: 'image/jpeg' });
-
-        console.log('   User image size:', (userBuffer.length / 1024).toFixed(2), 'KB');
-        console.log('   Dress image size:', (dressBuffer.length / 1024).toFixed(2), 'KB');
-        console.log('   Sending to AI model... (this may take 2-3 minutes)');
-
-        // Call the Space with proper format
-        const result = await client.predict("/tryon", {
-            dict: {
-                background: userBlob,  // Send as Blob
-                layers: [],
-                composite: null
-            },
-            garm_img: dressBlob,      // Send as Blob
-            garment_des: "a beautiful dress",
-            is_checked: true,
-            is_checked_crop: false,
-            denoise_steps: 30,
-            seed: 42
-        });
-
-        console.log('   ✅ AI processing complete!');
-        console.log('   Extracting result...');
-
-        // Extract image from result
-        if (!result || !result.data) {
-            throw new Error('No result data from Space');
-        }
-
-        console.log('   Result data type:', typeof result.data);
-        console.log('   Result data length:', Array.isArray(result.data) ? result.data.length : 'not array');
-
-        // The result should contain the processed image
-        let imageBuffer;
-        const resultData = result.data[0]; // First output is the result image
-
-        console.log('   Result item type:', typeof resultData);
-        console.log('   Result item keys:', resultData ? Object.keys(resultData) : 'null');
-
-        // Handle different result formats
-        if (typeof resultData === 'string') {
-            // It's a URL
-            if (resultData.startsWith('http')) {
-                console.log('   Downloading from URL...');
-                const response = await axios.get(resultData, {
-                    responseType: 'arraybuffer',
-                    timeout: 30000
-                });
-                imageBuffer = Buffer.from(response.data);
-            } else if (resultData.startsWith('/')) {
-                // File path on Space
-                const fileUrl = `https://yisol-idm-vton.hf.space/file=${resultData}`;
-                console.log('   Downloading from Space file:', fileUrl);
-                const response = await axios.get(fileUrl, {
-                    responseType: 'arraybuffer',
-                    timeout: 30000
-                });
-                imageBuffer = Buffer.from(response.data);
-            } else {
-                throw new Error('Unexpected string format: ' + resultData.substring(0, 100));
-            }
-        } else if (resultData && resultData.url) {
-            // Has url property
-            console.log('   Downloading from result.url...');
-            const response = await axios.get(resultData.url, {
-                responseType: 'arraybuffer',
-                timeout: 30000
-            });
-            imageBuffer = Buffer.from(response.data);
-        } else if (resultData && resultData.path) {
-            // Has path property
-            const fileUrl = `https://yisol-idm-vton.hf.space/file=${resultData.path}`;
-            console.log('   Downloading from result.path...');
-            const response = await axios.get(fileUrl, {
-                responseType: 'arraybuffer',
-                timeout: 30000
-            });
-            imageBuffer = Buffer.from(response.data);
-        } else if (resultData && resultData.name) {
-            // Gradio file object with name
-            const fileUrl = `https://yisol-idm-vton.hf.space/file=${resultData.name}`;
-            console.log('   Downloading from result.name...');
-            const response = await axios.get(fileUrl, {
-                responseType: 'arraybuffer',
-                timeout: 30000
-            });
-            imageBuffer = Buffer.from(response.data);
-        } else {
-            // Log full result for debugging
-            console.log('   Full result:', JSON.stringify(result).substring(0, 500));
-            throw new Error('Could not extract image from result format');
-        }
-
-        console.log('   ✅ Try-on image retrieved!');
-        console.log('   Image size:', (imageBuffer.length / 1024).toFixed(2), 'KB');
-        
-        return imageBuffer;
-
-    } catch (error) {
-        console.error('   ❌ IDM-VTON Error:', error.message);
-        console.error('   Stack:', error.stack ? error.stack.split('\n')[0] : 'No stack');
-        
-        // Provide helpful error messages
-        if (error.message.includes('Space is building')) {
-            throw new Error('IDM-VTON Space is starting. Please wait 2-3 minutes and try again.');
-        } else if (error.message.includes('queue')) {
-            throw new Error('IDM-VTON is busy. Please try again in 30 seconds.');
-        } else if (error.message.includes('timeout')) {
-            throw new Error('Request timed out. Try again.');
-        }
-        
-        throw error;
+    } catch (e) {
+        console.log('   Wake ping error (non-fatal):', e.message);
     }
+
+    // Try restart endpoint
+    try {
+        await axios.post(
+            `https://huggingface.co/api/spaces/${SPACE_ID}/restart`,
+            {},
+            {
+                headers: HF_API_KEY ? { 'Authorization': `Bearer ${HF_API_KEY}` } : {},
+                timeout: 10000,
+                validateStatus: () => true
+            }
+        );
+    } catch (e) { /* ignore */ }
+
+    // Poll until RUNNING
+    for (let attempt = 1; attempt <= 12; attempt++) {
+        try {
+            const res = await axios.get(
+                `https://huggingface.co/api/spaces/${SPACE_ID}`,
+                {
+                    headers: HF_API_KEY ? { 'Authorization': `Bearer ${HF_API_KEY}` } : {},
+                    timeout: 15000
+                }
+            );
+            const stage = res.data?.runtime?.stage;
+            console.log(`   [${attempt}/12] Space stage: ${stage}`);
+            if (stage === 'RUNNING' || stage === 'RUNNING_BUILDING') {
+                console.log('   Space is running!');
+                return true;
+            }
+        } catch (e) {
+            console.log(`   Poll ${attempt} failed:`, e.message);
+        }
+        if (attempt < 12) {
+            console.log('   Waiting 10s...');
+            await new Promise(r => setTimeout(r, 10000));
+        }
+    }
+    console.log('   Space may not be fully awake, attempting anyway...');
+    return false;
 };
 
-/**
- * Process multiple dresses
- */
+// ─── Connect with retry ───────────────────────────────────────────────────────
+const connectWithRetry = async (maxRetries = 3) => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            console.log(`   Connecting to Gradio client (attempt ${attempt}/${maxRetries})...`);
+            const client = await Client.connect(SPACE_ID, {
+                hf_token: HF_API_KEY
+            });
+            console.log('   Connected!');
+            return client;
+        } catch (error) {
+            console.log(`   Connect attempt ${attempt} failed: ${error.message}`);
+            if (error.message.includes('Space metadata could not be loaded')) {
+                if (attempt < maxRetries) {
+                    const wait = attempt * 20000;
+                    console.log(`   Waiting ${wait / 1000}s then retrying...`);
+                    await new Promise(r => setTimeout(r, wait));
+                    await wakeSpace();
+                }
+            } else {
+                throw error;
+            }
+        }
+    }
+    throw new Error('Could not connect to IDM-VTON after ' + maxRetries + ' attempts');
+};
+
+// ─── Download image from result ───────────────────────────────────────────────
+const extractImage = async (resultData) => {
+    if (!resultData) throw new Error('Result data is null');
+
+    if (typeof resultData === 'string') {
+        if (resultData.startsWith('data:image')) {
+            return Buffer.from(resultData.split(',')[1], 'base64');
+        }
+        const url = resultData.startsWith('http')
+            ? resultData
+            : `${SPACE_URL}/file=${resultData}`;
+        const r = await axios.get(url, { responseType: 'arraybuffer', timeout: 60000 });
+        return Buffer.from(r.data);
+    }
+
+    if (resultData.url || resultData.path || resultData.name) {
+        const url = resultData.url
+            || `${SPACE_URL}/file=${resultData.path || resultData.name}`;
+        const r = await axios.get(url, { responseType: 'arraybuffer', timeout: 60000 });
+        return Buffer.from(r.data);
+    }
+
+    throw new Error('Unknown result format: ' + JSON.stringify(resultData).substring(0, 200));
+};
+
+// ─── Single try-on ────────────────────────────────────────────────────────────
+const processSingleTryOn = async (userImagePath, dressImagePath) => {
+    if (!fs.existsSync(userImagePath)) throw new Error(`User image not found: ${userImagePath}`);
+    if (!fs.existsSync(dressImagePath)) throw new Error(`Dress image not found: ${dressImagePath}`);
+
+    console.log('Processing IDM-VTON try-on...');
+
+    await wakeSpace();
+    const client = await connectWithRetry(3);
+
+    const userBlob = new Blob([fs.readFileSync(userImagePath)], { type: 'image/jpeg' });
+    const dressBlob = new Blob([fs.readFileSync(dressImagePath)], { type: 'image/jpeg' });
+
+    console.log('   Sending to AI model...');
+
+    const result = await client.predict("/tryon", {
+        dict: { background: userBlob, layers: [], composite: null },
+        garm_img: dressBlob,
+        garment_des: "a beautiful dress",
+        is_checked: true,
+        is_checked_crop: false,
+        denoise_steps: 30,
+        seed: 42
+    });
+
+    if (!result?.data) throw new Error('No result data from Space');
+
+    const imageBuffer = await extractImage(result.data[0]);
+    console.log('   Try-on complete! Size:', (imageBuffer.length / 1024).toFixed(2), 'KB');
+    return imageBuffer;
+};
+
+// ─── Multiple try-ons ─────────────────────────────────────────────────────────
 const processMultipleTryOns = async (userImagePath, dressImagePaths) => {
     const results = [];
-    
-    console.log(`\n🎨 Processing ${dressImagePaths.length} IDM-VTON try-ons...`);
-    console.log('⚠️  First request may take 2-3 minutes\n');
+
+    console.log(`\nProcessing ${dressImagePaths.length} IDM-VTON try-ons...`);
+    console.log('Waking space first — may take 2-3 minutes if sleeping\n');
+
+    // Wake once before the loop
+    await wakeSpace();
+    let client = null;
 
     for (let i = 0; i < dressImagePaths.length; i++) {
         try {
             console.log(`[${i + 1}/${dressImagePaths.length}] Processing dress...`);
-            
-            const buffer = await processSingleTryOn(userImagePath, dressImagePaths[i]);
-            
-            // Save result
-            const outputDir = './uploads/tryon-results';
-            if (!fs.existsSync(outputDir)) {
-                fs.mkdirSync(outputDir, { recursive: true });
+
+            if (client === null) {
+                client = await connectWithRetry(3);
             }
 
-            const timestamp = Date.now();
-            const filename = `tryon-${timestamp}-${i}.jpg`;
-            const outputPath = path.join(outputDir, filename);
-            
-            fs.writeFileSync(outputPath, buffer);
+            const userBlob = new Blob([fs.readFileSync(userImagePath)], { type: 'image/jpeg' });
+            const dressBlob = new Blob([fs.readFileSync(dressImagePaths[i])], { type: 'image/jpeg' });
+
+            const result = await client.predict("/tryon", {
+                dict: { background: userBlob, layers: [], composite: null },
+                garm_img: dressBlob,
+                garment_des: "a beautiful dress",
+                is_checked: true,
+                is_checked_crop: false,
+                denoise_steps: 30,
+                seed: 42
+            });
+
+            if (!result?.data) throw new Error('No result data from Space');
+
+            const imageBuffer = await extractImage(result.data[0]);
+
+            const outputDir = './uploads/tryon-results';
+            if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+
+            const filename = `tryon-${Date.now()}-${i}.jpg`;
+            fs.writeFileSync(path.join(outputDir, filename), imageBuffer);
 
             results.push({
                 success: true,
@@ -195,11 +204,13 @@ const processMultipleTryOns = async (userImagePath, dressImagePaths) => {
                 method: 'IDM-VTON AI'
             });
 
-            console.log(`   ✅ Dress ${i + 1} completed!\n`);
+            console.log(`   Dress ${i + 1} done!\n`);
 
         } catch (error) {
-            console.error(`   ❌ Failed:`, error.message, '\n');
-            
+            console.error(`   Failed dress ${i + 1}:`, error.message, '\n');
+            if (error.message.includes('metadata') || error.message.includes('connect')) {
+                client = null; // reset so next dress reconnects
+            }
             results.push({
                 success: false,
                 dressIndex: i,
@@ -209,57 +220,33 @@ const processMultipleTryOns = async (userImagePath, dressImagePaths) => {
             });
         }
 
-        // Wait between requests
         if (i < dressImagePaths.length - 1) {
-            console.log('   ⏳ Waiting 5 seconds...\n');
-            await new Promise(resolve => setTimeout(resolve, 5000));
+            await new Promise(r => setTimeout(r, 5000));
         }
     }
 
     return results;
 };
 
-/**
- * Fallback mode
- */
 const simpleTryOnFallback = async (userImagePath, dressImagePath) => {
-    const dressBuffer = fs.readFileSync(dressImagePath);
-    
     const outputDir = './uploads/tryon-results';
-    if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir, { recursive: true });
-    }
-
-    const timestamp = Date.now();
-    const filename = `tryon-fallback-${timestamp}.jpg`;
-    const outputPath = path.join(outputDir, filename);
-    
-    fs.writeFileSync(outputPath, dressBuffer);
-
-    return {
-        success: true,
-        resultUrl: `/uploads/tryon-results/${filename}`,
-        note: 'Fallback mode',
-        aiGenerated: false
-    };
+    if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+    const filename = `tryon-fallback-${Date.now()}.jpg`;
+    fs.writeFileSync(path.join(outputDir, filename), fs.readFileSync(dressImagePath));
+    return { success: true, resultUrl: `/uploads/tryon-results/${filename}`, aiGenerated: false };
 };
 
-/**
- * Check Space availability
- */
 const checkAPIAvailability = async () => {
-    if (!HF_API_KEY || HF_API_KEY.length < 10) {
-        console.log('⚠️  No API key\n');
-        return false;
-    }
-
+    if (!HF_API_KEY || HF_API_KEY.length < 10) return false;
     try {
-        console.log('🔍 Checking IDM-VTON Space...');
-        const client = await Client.connect(SPACE_URL, { hf_token: HF_API_KEY });
-        console.log('✅ IDM-VTON Space is ready!\n');
-        return true;
-    } catch (error) {
-        console.log('⚠️  Space check failed\n');
+        const res = await axios.get(
+            `https://huggingface.co/api/spaces/${SPACE_ID}`,
+            { headers: { 'Authorization': `Bearer ${HF_API_KEY}` }, timeout: 10000 }
+        );
+        const stage = res.data?.runtime?.stage;
+        console.log(`Space stage: ${stage}`);
+        return stage === 'RUNNING' || stage === 'SLEEPING';
+    } catch (e) {
         return false;
     }
 };

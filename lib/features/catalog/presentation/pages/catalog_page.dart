@@ -43,8 +43,10 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
         currentIndex: 0,
         onTap: (index) {
           if (index == 1) {
-            // Try On - navigate to TryOnSelectionPage
-            context.router.push(const TryOnSelectionRoute());
+            // ─── Fix: go directly to TryOnRoute — it handles dress
+            //         selection + photo capture on a single page.
+            //         TryOnSelectionPage is removed from this flow. ───
+            context.router.push(const TryOnRoute());
           } else if (index == 2) {
             context.router.push(const CartRoute());
           }
@@ -96,8 +98,9 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
           fillColor: Colors.white,
         ),
         onChanged: (value) {
-          // Debounce logic
-          ref.read(catalogControllerProvider.notifier).searchDresses(value);
+          ref
+              .read(catalogControllerProvider.notifier)
+              .searchDresses(value);
         },
       ),
     );
@@ -129,7 +132,8 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
               selectedColor: AppTheme.primaryColor,
               labelStyle: TextStyle(
                 color: isSelected ? Colors.white : AppTheme.textPrimary,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontWeight:
+                    isSelected ? FontWeight.bold : FontWeight.normal,
               ),
             ),
           );
@@ -173,7 +177,8 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
             mainAxisSpacing: 16,
           ),
           itemCount: dresses.length,
-          itemBuilder: (context, index) => _buildDressCard(dresses[index]),
+          itemBuilder: (context, index) =>
+              _buildDressCard(dresses[index]),
         );
       },
     );
@@ -182,12 +187,12 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
   Widget _buildDressCard(Dress dress) {
     return GestureDetector(
       onTap: () {
-        // Navigate to dress detail page
         context.router.push(DressDetailRoute(dress: dress));
       },
       child: Card(
         elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -201,7 +206,8 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
                   width: double.infinity,
                   placeholder: (context, url) =>
                       const Center(child: CircularProgressIndicator()),
-                  errorWidget: (context, url, error) => const Icon(Icons.error),
+                  errorWidget: (context, url, error) =>
+                      const Icon(Icons.error),
                 ),
               ),
             ),
@@ -211,7 +217,8 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(dress.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style:
+                          const TextStyle(fontWeight: FontWeight.bold),
                       maxLines: 2),
                   const SizedBox(height: 4),
                   Text(AppConfig.formatPriceShort(dress.price),

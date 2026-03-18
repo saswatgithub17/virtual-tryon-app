@@ -49,7 +49,7 @@ router.post('/create-intent', async (req, res) => {
       // =====================================
       
       // Get UPI details from environment or use default
-      const upiId = process.env.UPI_ID || 'auratry@upi';
+      const upiId = process.env.UPI_ID || 'saswatsumandwibedy17@okhdfcbank';
       const merchantName = process.env.MERCHANT_NAME || 'AuraTry';
       
       // Generate UPI payment string

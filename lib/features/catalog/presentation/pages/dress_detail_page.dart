@@ -29,8 +29,18 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
   final List<String> _sizes = ['XS', 'S', 'M', 'L', 'XL'];
   int _quantity = 1;
 
+  // ─── Check whether current dress + size combo is already in cart ──────────
+  bool _isInCart(List cartItems) {
+    return cartItems.any((item) =>
+        item.dress.dressId == widget.dress.dressId &&
+        item.selectedSize == _sizes[_selectedSize]);
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Watch cart so button updates reactively when size changes or cart is modified
+    final cartItems = ref.watch(cartControllerProvider);
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: CustomScrollView(
@@ -51,7 +61,8 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                   fit: BoxFit.cover,
                   placeholder: (context, url) =>
                       Container(color: Colors.grey[200]),
-                  errorWidget: (context, url, error) => const Icon(Icons.error),
+                  errorWidget: (context, url, error) =>
+                      const Icon(Icons.error),
                 ),
               ),
             ),
@@ -71,7 +82,8 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                           children: [
                             Text(widget.dress.name,
                                 style: const TextStyle(
-                                    fontSize: 26, fontWeight: FontWeight.bold)),
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.bold)),
                             const SizedBox(height: 4),
                             Text(widget.dress.category ?? 'Dress',
                                 style: TextStyle(
@@ -89,7 +101,8 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                           ]),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Text('₹${widget.dress.price.toStringAsFixed(2)}',
+                        child: Text(
+                            '₹${widget.dress.price.toStringAsFixed(2)}',
                             style: const TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
@@ -99,8 +112,8 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                   ),
                   const SizedBox(height: 24),
                   const Text('Select Size',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
                   SizedBox(
                     height: 50,
@@ -110,7 +123,8 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                       itemBuilder: (context, index) {
                         final isSelected = _selectedSize == index;
                         return GestureDetector(
-                          onTap: () => setState(() => _selectedSize = index),
+                          onTap: () =>
+                              setState(() => _selectedSize = index),
                           child: Container(
                             margin: const EdgeInsets.only(right: 12),
                             width: 60,
@@ -135,67 +149,74 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                   ),
                   const SizedBox(height: 24),
                   const Text('Quantity',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
                   Row(
                     children: [
                       IconButton(
                           icon: const Icon(Icons.remove),
                           onPressed: () {
-                            if (_quantity > 1) setState(() => _quantity--);
+                            if (_quantity > 1)
+                              setState(() => _quantity--);
                           }),
                       Text(_quantity.toString(),
                           style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold)),
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold)),
                       IconButton(
                           icon: const Icon(Icons.add),
-                          onPressed: () => setState(() => _quantity++)),
+                          onPressed: () =>
+                              setState(() => _quantity++)),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  // Additional dress details
                   if (widget.dress.brand != null) ...[
                     const SizedBox(height: 24),
                     const Text('Brand',
-                        style:
-                            TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 12),
                     Text(widget.dress.brand!,
-                        style: TextStyle(fontSize: 15, color: Colors.grey[700])),
+                        style: TextStyle(
+                            fontSize: 15, color: Colors.grey[700])),
                   ],
                   if (widget.dress.color != null) ...[
                     const SizedBox(height: 24),
                     const Text('Color',
-                        style:
-                            TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 12),
                     Text(widget.dress.color!,
-                        style: TextStyle(fontSize: 15, color: Colors.grey[700])),
+                        style: TextStyle(
+                            fontSize: 15, color: Colors.grey[700])),
                   ],
                   if (widget.dress.material != null) ...[
                     const SizedBox(height: 24),
                     const Text('Material',
-                        style:
-                            TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 12),
                     Text(widget.dress.material!,
-                        style: TextStyle(fontSize: 15, color: Colors.grey[700])),
+                        style: TextStyle(
+                            fontSize: 15, color: Colors.grey[700])),
                   ],
                   if (widget.dress.averageRating != null) ...[
                     const SizedBox(height: 24),
                     Row(
                       children: [
                         const Text('Rating',
-                            style:
-                                TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold)),
                         const SizedBox(width: 12),
                         ...List.generate(5, (index) {
                           final rating = widget.dress.averageRating!;
                           return Icon(
                             index < rating.floor()
                                 ? Icons.star
-                                : (index < rating ? Icons.star_half : Icons.star_border),
+                                : (index < rating
+                                    ? Icons.star_half
+                                    : Icons.star_border),
                             color: Colors.amber,
                             size: 20,
                           );
@@ -203,18 +224,22 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                         const SizedBox(width: 8),
                         Text(
                           '(${widget.dress.totalReviews ?? 0} reviews)',
-                          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                          style: TextStyle(
+                              fontSize: 14, color: Colors.grey[600]),
                         ),
                       ],
                     ),
                   ],
                   const SizedBox(height: 24),
                   const Text('Description',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
-                  Text(widget.dress.description ?? 'No description available.',
-                      style: TextStyle(fontSize: 15, color: Colors.grey[700])),
+                  Text(
+                      widget.dress.description ??
+                          'No description available.',
+                      style: TextStyle(
+                          fontSize: 15, color: Colors.grey[700])),
                   const SizedBox(height: 120),
                 ],
               ),
@@ -234,6 +259,7 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Try-on buttons row
               Row(
                 children: [
                   Expanded(
@@ -262,7 +288,8 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                         icon: const Icon(Icons.upload_file),
                         label: const Text('Upload'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryColor.withOpacity(0.8),
+                          backgroundColor:
+                              AppTheme.primaryColor.withOpacity(0.8),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
@@ -274,21 +301,36 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                 ],
               ),
               const SizedBox(height: 12),
+              // ─── Add to Cart / Go to Cart button ────────────────────
               SizedBox(
                 width: double.infinity,
                 height: 56,
-                child: ElevatedButton.icon(
-                  onPressed: _addToCart,
-                  icon: const Icon(Icons.shopping_cart),
-                  label: const Text('Add to Cart'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.secondaryColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                ),
+                child: _isInCart(cartItems)
+                    ? ElevatedButton.icon(
+                        onPressed: () =>
+                            context.router.push(const CartRoute()),
+                        icon: const Icon(Icons.shopping_cart),
+                        label: const Text('Go to Cart'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.successColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      )
+                    : ElevatedButton.icon(
+                        onPressed: _addToCart,
+                        icon: const Icon(Icons.shopping_cart_outlined),
+                        label: const Text('Add to Cart'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.secondaryColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      ),
               ),
             ],
           ),
@@ -303,13 +345,15 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
           quantity: _quantity,
           size: _sizes[_selectedSize],
         );
-    Helpers.showSuccess(context, 'Added to cart!');
+    // No snackbar here — button visually changes to "Go to Cart"
+    // which is a clearer signal than a transient toast
   }
 
   void _startTryOn() {
-    // Pre-select this dress and navigate to camera for try-on
     ref.read(tryOnControllerProvider.notifier).clearSelection();
-    ref.read(tryOnControllerProvider.notifier).toggleDressSelection(widget.dress);
+    ref
+        .read(tryOnControllerProvider.notifier)
+        .toggleDressSelection(widget.dress);
     context.router.push(CameraRoute(dress: widget.dress));
   }
 
@@ -317,21 +361,20 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
     try {
       final cameraService = CameraService();
       final PickedImage? image = await cameraService.pickFromGallery();
-      
+
       if (image != null && mounted) {
-        // Validate the image
         final error = await cameraService.validateImage(image);
         if (error != null) {
           if (mounted) Helpers.showError(context, error);
           return;
         }
-        
-        // Pre-select this dress and set the user photo
+
         ref.read(tryOnControllerProvider.notifier).clearSelection();
-        ref.read(tryOnControllerProvider.notifier).toggleDressSelection(widget.dress);
+        ref
+            .read(tryOnControllerProvider.notifier)
+            .toggleDressSelection(widget.dress);
         ref.read(tryOnControllerProvider.notifier).setUserPhoto(image);
-        
-        // Navigate to try-on page
+
         if (mounted) {
           context.router.push(const TryOnRoute());
         }

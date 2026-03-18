@@ -417,7 +417,7 @@ class _PaymentPageState extends ConsumerState<PaymentPage>
     final orderId = state.currentOrder?.orderId ?? 'N/A';
     
     // UPI payment URL format
-    final upiId = 'auratry@upi';
+    final upiId = 'saswatsumandwibedy17@okhdfcbank';
     final upiUrl = 'upi://pay?pa=$upiId&pn=AuraTry&am=$totalAmount&cu=INR&tn=Order-$orderId';
 
     return Container(

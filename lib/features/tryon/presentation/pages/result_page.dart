@@ -5,6 +5,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:virtual_tryon_app/core/network/api_config.dart';
 import 'package:virtual_tryon_app/core/theme/app_theme.dart';
 import 'package:virtual_tryon_app/core/utils/helpers.dart';
+import 'package:virtual_tryon_app/features/cart/presentation/cart_controller.dart';
+import 'package:virtual_tryon_app/features/catalog/data/models/dress_model.dart';
 import 'package:virtual_tryon_app/features/tryon/presentation/controllers/tryon_controller.dart';
 import 'package:virtual_tryon_app/features/tryon/data/models/tryon_model.dart';
 import 'package:virtual_tryon_app/core/router/app_router.dart';
@@ -31,6 +33,37 @@ class _ResultPageState extends ConsumerState<ResultPage> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  // ─── Add all selected dresses to cart then navigate ───────────────────────
+  void _addAllToCart() {
+    // Read selected dresses BEFORE any navigation so AutoDispose doesn't
+    // wipe the state mid-call.
+    final List<Dress> selectedDresses =
+        List.from(ref.read(tryOnControllerProvider).selectedDresses);
+
+    if (selectedDresses.isEmpty) {
+      Helpers.showError(
+          context, 'No dresses selected to add to cart.');
+      return;
+    }
+
+    final cartController = ref.read(cartControllerProvider.notifier);
+    for (final dress in selectedDresses) {
+      // Default size 'M' — user can adjust in cart if needed
+      cartController.addToCart(dress, quantity: 1, size: 'M');
+    }
+
+    final count = selectedDresses.length;
+    Helpers.showSuccess(
+      context,
+      '$count dress${count > 1 ? "es" : ""} added to cart!',
+    );
+
+    // Navigate AFTER adding so cart state is written to SharedPreferences first
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) context.router.push(const CartRoute());
+    });
   }
 
   @override
@@ -72,16 +105,15 @@ class _ResultPageState extends ConsumerState<ResultPage> {
                   ),
                 ),
                 _buildPageIndicator(tryOnState.results.length),
-                _buildBottomActions(),
+                _buildBottomActions(tryOnState),
               ],
             ),
     );
   }
 
   Widget _buildResultCard(TryOnResult result) {
-    // Get the best available URL
     final imageUrl = result.displayUrl;
-    
+
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -96,13 +128,16 @@ class _ResultPageState extends ConsumerState<ResultPage> {
                         imageUrl: ApiConfig.getUploadUrl(imageUrl),
                         fit: BoxFit.contain,
                         placeholder: (context, url) => const Center(
-                            child: CircularProgressIndicator(color: Colors.white)),
+                            child: CircularProgressIndicator(
+                                color: Colors.white)),
                         errorWidget: (context, url, error) => const Center(
-                          child: Icon(Icons.error, color: Colors.white, size: 48),
+                          child: Icon(Icons.error,
+                              color: Colors.white, size: 48),
                         ),
                       )
                     : const Center(
-                        child: Icon(Icons.image_not_supported, color: Colors.white, size: 48),
+                        child: Icon(Icons.image_not_supported,
+                            color: Colors.white, size: 48),
                       ),
               ),
             ),
@@ -111,7 +146,8 @@ class _ResultPageState extends ConsumerState<ResultPage> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-                color: Colors.white, borderRadius: BorderRadius.circular(16)),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16)),
             child: Column(
               children: [
                 Text(result.dressName ?? 'Dress',
@@ -120,8 +156,8 @@ class _ResultPageState extends ConsumerState<ResultPage> {
                     textAlign: TextAlign.center),
                 const SizedBox(height: 8),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: result.aiGenerated
                         ? AppTheme.successColor.withOpacity(0.1)
@@ -131,13 +167,20 @@ class _ResultPageState extends ConsumerState<ResultPage> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(result.aiGenerated ? Icons.check_circle : Icons.info,
+                      Icon(
+                          result.aiGenerated
+                              ? Icons.check_circle
+                              : Icons.info,
                           size: 16,
                           color: result.aiGenerated
                               ? AppTheme.successColor
                               : AppTheme.warningColor),
                       const SizedBox(width: 6),
-                      Text(result.method ?? (result.aiGenerated ? 'AI Generated' : 'Preview Mode'),
+                      Text(
+                          result.method ??
+                              (result.aiGenerated
+                                  ? 'AI Generated'
+                                  : 'Preview Mode'),
                           style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -167,8 +210,9 @@ class _ResultPageState extends ConsumerState<ResultPage> {
             width: _currentPage == index ? 24 : 8,
             height: 8,
             decoration: BoxDecoration(
-                color:
-                    _currentPage == index ? AppTheme.primaryColor : Colors.grey,
+                color: _currentPage == index
+                    ? AppTheme.primaryColor
+                    : Colors.grey,
                 borderRadius: BorderRadius.circular(4)),
           );
         }),
@@ -176,14 +220,17 @@ class _ResultPageState extends ConsumerState<ResultPage> {
     );
   }
 
-  Widget _buildBottomActions() {
+  Widget _buildBottomActions(TryOnState tryOnState) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
             begin: Alignment.bottomCenter,
             end: Alignment.topCenter,
-            colors: [Colors.black.withOpacity(0.8), Colors.transparent]),
+            colors: [
+              Colors.black.withOpacity(0.8),
+              Colors.transparent
+            ]),
       ),
       child: SafeArea(
         child: Row(
@@ -207,12 +254,14 @@ class _ResultPageState extends ConsumerState<ResultPage> {
             const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: () {
-                  Helpers.showSuccess(context, 'Added to cart!');
-                  context.router.push(const CartRoute());
-                },
+                // ─── Fix: actually adds dresses to cart ───
+                onPressed: _addAllToCart,
                 icon: const Icon(Icons.shopping_cart),
-                label: const Text('Add All to Cart'),
+                label: Text(
+                  tryOnState.selectedDresses.isNotEmpty
+                      ? 'Add ${tryOnState.selectedDresses.length} to Cart'
+                      : 'Add to Cart',
+                ),
                 style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
