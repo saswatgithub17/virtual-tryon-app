@@ -21,13 +21,12 @@ class CatalogPage extends ConsumerStatefulWidget {
 class _CatalogPageState extends ConsumerState<CatalogPage> {
   final TextEditingController _searchController = TextEditingController();
 
-  // Fix 5: 5-tap counter for Home tab (index 0) to open admin login
+  // 5-tap admin secret on Home tab
   int _homeTapCount = 0;
   DateTime? _lastHomeTap;
 
   void _handleBottomNavTap(int index) {
     if (index == 0) {
-      // Count rapid taps on the Home tab
       final now = DateTime.now();
       if (_lastHomeTap != null &&
           now.difference(_lastHomeTap!).inMilliseconds > 800) {
@@ -35,12 +34,10 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
       }
       _lastHomeTap = now;
       _homeTapCount++;
-
       if (_homeTapCount >= 5) {
         _homeTapCount = 0;
         _showAdminDialog();
       }
-      // index 0 = already on home, no navigation needed
     } else if (index == 1) {
       context.router.push(const TryOnRoute());
     } else if (index == 2) {
@@ -51,30 +48,33 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
   void _showAdminDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
-            Icon(Icons.admin_panel_settings,
-                color: AppTheme.primaryColor),
+            Icon(Icons.admin_panel_settings, color: AppTheme.primaryColor),
             SizedBox(width: 8),
             Text('Admin Access'),
           ],
         ),
-        content:
-            const Text('Would you like to access the Admin Dashboard?'),
+        content: const Text('Open the Admin Dashboard?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop(ctx);
               context.router.push(const AdminLoginRoute());
             },
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor),
-            child: const Text('Go to Admin'),
+            child: const Text('Go to Admin',
+                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -90,11 +90,13 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: _buildAppBar(),
       body: Column(
         children: [
           _buildSearchBar(),
-          _buildCategoryTabs(),
+          _buildGenderFilter(),
+          _buildCategoryChips(),
           Expanded(child: _buildDressGrid()),
         ],
       ),
@@ -108,30 +110,32 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       title: const Text(
-        AppConfig.appName,
-        style: TextStyle(fontWeight: FontWeight.bold),
+        'AuraTry : Pantaloons',
+        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
       ),
       backgroundColor: AppTheme.primaryColor,
       foregroundColor: Colors.white,
       elevation: 0,
-      actions: const [SizedBox(width: 8)],
     );
   }
 
   Widget _buildSearchBar() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       color: AppTheme.primaryColor,
       child: TextField(
         controller: _searchController,
+        style: const TextStyle(fontSize: 14),
         decoration: InputDecoration(
-          hintText: 'Search dresses...',
-          prefixIcon: const Icon(Icons.search),
+          hintText: 'Search dresses, brands...',
+          hintStyle: TextStyle(color: Colors.grey[500]),
+          prefixIcon: const Icon(Icons.search, color: Colors.grey, size: 20),
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.clear),
+                  icon: const Icon(Icons.clear, color: Colors.grey, size: 18),
                   onPressed: () {
                     _searchController.clear();
+                    setState(() {});
                     ref
                         .read(catalogControllerProvider.notifier)
                         .searchDresses('');
@@ -144,8 +148,11 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
           ),
           filled: true,
           fillColor: Colors.white,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         ),
         onChanged: (value) {
+          setState(() {});
           ref
               .read(catalogControllerProvider.notifier)
               .searchDresses(value);
@@ -154,39 +161,119 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
     );
   }
 
-  Widget _buildCategoryTabs() {
+  // ─── Gender Filter Row ─────────────────────────────────────────────────────
+  Widget _buildGenderFilter() {
+    final selectedGender =
+        ref.watch(catalogControllerProvider.notifier).selectedGender;
+
+    final filters = [
+      ('all', '✨  All', false),
+      ('men', '👔  Men', false),
+      ('women', '👗  Women', true),
+    ];
+
     return Container(
-      height: 50,
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+      child: Row(
+        children: filters.map((f) {
+          final isSelected = selectedGender == f.$1;
+          final isWomen = f.$3;
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: GestureDetector(
+                onTap: () {
+                  ref
+                      .read(catalogControllerProvider.notifier)
+                      .setGender(f.$1);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOut,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    gradient: isSelected
+                        ? LinearGradient(
+                            colors: isWomen
+                                ? [const Color(0xFFE91E8C), const Color(0xFFFF6B9D)]
+                                : [AppTheme.primaryColor, AppTheme.secondaryColor],
+                          )
+                        : null,
+                    color: isSelected ? null : Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                    border: isSelected
+                        ? null
+                        : Border.all(color: Colors.grey[300]!),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: (isWomen
+                                      ? Colors.pink
+                                      : AppTheme.primaryColor)
+                                  .withOpacity(0.35),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            )
+                          ]
+                        : null,
+                  ),
+                  child: Center(
+                    child: Text(
+                      f.$2,
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : Colors.grey[700],
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.w500,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // ─── Category Chips ────────────────────────────────────────────────────────
+  Widget _buildCategoryChips() {
+    final selectedCategory =
+        ref.watch(catalogControllerProvider.notifier).selectedCategory;
+
+    return Container(
+      color: Colors.white,
+      height: 44,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: AppConfig.categories.length,
         itemBuilder: (context, index) {
           final category = AppConfig.categories[index];
-          final selectedCategory = ref
-              .watch(catalogControllerProvider.notifier)
-              .selectedCategory;
           final isSelected = selectedCategory == category;
-
           return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
             child: ChoiceChip(
               label: Text(category),
               selected: isSelected,
-              onSelected: (_) {
-                ref
-                    .read(catalogControllerProvider.notifier)
-                    .setCategory(category);
-              },
+              onSelected: (_) => ref
+                  .read(catalogControllerProvider.notifier)
+                  .setCategory(category),
               selectedColor: AppTheme.primaryColor,
-              labelStyle: TextStyle(
-                color: isSelected
-                    ? Colors.white
-                    : AppTheme.textPrimary,
-                fontWeight: isSelected
-                    ? FontWeight.bold
-                    : FontWeight.normal,
+              backgroundColor: Colors.grey[100],
+              side: BorderSide(
+                color: isSelected ? AppTheme.primaryColor : Colors.grey[300]!,
               ),
+              labelStyle: TextStyle(
+                color: isSelected ? Colors.white : AppTheme.textPrimary,
+                fontWeight:
+                    isSelected ? FontWeight.bold : FontWeight.normal,
+                fontSize: 12,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
             ),
           );
         },
@@ -194,45 +281,58 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
     );
   }
 
+  // ─── Dress Grid ────────────────────────────────────────────────────────────
   Widget _buildDressGrid() {
     final catalogAsync = ref.watch(catalogControllerProvider);
-
     return catalogAsync.when(
-      loading: () =>
-          const Center(child: CircularProgressIndicator()),
-      error: (err, stack) => Center(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, _) => Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline,
-                size: 64, color: Colors.grey),
-            const SizedBox(height: 16),
-            Text(err.toString(), textAlign: TextAlign.center),
-            ElevatedButton(
-              onPressed: () =>
-                  ref.refresh(catalogControllerProvider),
-              child: const Text('Retry'),
+            Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 12),
+            Text('Could not load dresses',
+                style: TextStyle(color: Colors.grey[600])),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: () => ref.refresh(catalogControllerProvider),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
             ),
           ],
         ),
       ),
       data: (dresses) {
         if (dresses.isEmpty) {
-          return const Center(
-              child: Text(AppConfig.emptySearchMessage));
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.search_off, size: 72, color: Colors.grey[300]),
+                const SizedBox(height: 16),
+                Text('No dresses found',
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[600])),
+                const SizedBox(height: 8),
+                Text('Try a different filter',
+                    style: TextStyle(color: Colors.grey[400])),
+              ],
+            ),
+          );
         }
         return GridView.builder(
-          padding: const EdgeInsets.all(16),
-          gridDelegate:
-              const SliverGridDelegateWithFixedCrossAxisCount(
+          padding: const EdgeInsets.all(12),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            childAspectRatio: 0.7,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
+            childAspectRatio: 0.68,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
           ),
           itemCount: dresses.length,
-          itemBuilder: (context, index) =>
-              _buildDressCard(dresses[index]),
+          itemBuilder: (_, i) => _buildDressCard(dresses[i]),
         );
       },
     );
@@ -240,44 +340,147 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
 
   Widget _buildDressCard(Dress dress) {
     return GestureDetector(
-      onTap: () =>
-          context.router.push(DressDetailRoute(dress: dress)),
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12)),
+      onTap: () => context.router.push(DressDetailRoute(dress: dress)),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.07),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(12)),
-                child: CachedNetworkImage(
-                  imageUrl: ApiConfig.getUploadUrl(dress.imageUrl),
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  placeholder: (context, url) => const Center(
-                      child: CircularProgressIndicator()),
-                  errorWidget: (context, url, error) =>
-                      const Icon(Icons.error),
-                ),
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16)),
+                    child: CachedNetworkImage(
+                      imageUrl: ApiConfig.getUploadUrl(dress.imageUrl),
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                      placeholder: (_, __) => Container(
+                        color: Colors.grey[100],
+                        child: const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2)),
+                      ),
+                      errorWidget: (_, __, ___) => Container(
+                        color: Colors.grey[100],
+                        child: Icon(Icons.image_not_supported,
+                            color: Colors.grey[400], size: 40),
+                      ),
+                    ),
+                  ),
+                  // Gender badge
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: (dress.gender == 'women'
+                                ? const Color(0xFFE91E8C)
+                                : AppTheme.primaryColor)
+                            .withOpacity(0.88),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        dress.gender == 'women' ? '👗 Women' : '👔 Men',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                  // Rating
+                  if ((dress.averageRating ?? 0) > 0)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star,
+                                color: Colors.amber, size: 10),
+                            const SizedBox(width: 2),
+                            Text(
+                              dress.averageRating!.toStringAsFixed(1),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(dress.name,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold),
-                      maxLines: 2),
+                  Text(
+                    dress.name,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: Color(0xFF1A1A2E)),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 4),
-                  Text(AppConfig.formatPriceShort(dress.price),
-                      style: const TextStyle(
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '₹${dress.price.toStringAsFixed(0)}',
+                        style: const TextStyle(
                           color: AppTheme.primaryColor,
-                          fontWeight: FontWeight.bold)),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                      if (dress.category != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            dress.category!,
+                            style: const TextStyle(
+                              fontSize: 8,
+                              color: AppTheme.primaryColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ),

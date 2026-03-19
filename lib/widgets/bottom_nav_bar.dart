@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:auto_route/auto_route.dart';
+import 'package:virtual_tryon_app/features/cart/presentation/cart_controller.dart';
 import 'package:virtual_tryon_app/core/theme/app_theme.dart';
-import 'package:virtual_tryon_app/core/router/app_router.dart';
 
+/// Main bottom nav bar used by all non-admin pages.
+/// Automatically watches the cart and shows a live badge on the Cart tab.
 class AppBottomNavBar extends ConsumerWidget {
   final int currentIndex;
   final Function(int) onTap;
@@ -16,26 +17,38 @@ class AppBottomNavBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Watch cart — badge updates instantly when items are added/removed
+    final cartItems = ref.watch(cartControllerProvider);
+    final cartCount =
+        cartItems.fold<int>(0, (sum, item) => sum + item.quantity);
+
     return BottomNavigationBar(
       currentIndex: currentIndex,
       onTap: onTap,
-      selectedItemColor: AppTheme.primaryColor,
-      unselectedItemColor: Colors.grey,
       type: BottomNavigationBarType.fixed,
-      items: const [
-        BottomNavigationBarItem(
+      selectedItemColor: AppTheme.primaryColor,
+      unselectedItemColor: Colors.grey[500],
+      selectedLabelStyle: const TextStyle(
+        fontWeight: FontWeight.w600,
+        fontSize: 12,
+      ),
+      unselectedLabelStyle: const TextStyle(fontSize: 11),
+      elevation: 12,
+      backgroundColor: Colors.white,
+      items: [
+        const BottomNavigationBarItem(
           icon: Icon(Icons.home_outlined),
           activeIcon: Icon(Icons.home),
           label: 'Home',
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.checkroom_outlined),
-          activeIcon: Icon(Icons.checkroom),
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.style_outlined),
+          activeIcon: Icon(Icons.style),
           label: 'Try On',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.shopping_cart_outlined),
-          activeIcon: Icon(Icons.shopping_cart),
+          icon: _CartBadgeIcon(count: cartCount, isActive: false),
+          activeIcon: _CartBadgeIcon(count: cartCount, isActive: true),
           label: 'Cart',
         ),
       ],
@@ -43,106 +56,54 @@ class AppBottomNavBar extends ConsumerWidget {
   }
 }
 
-// Hidden admin access — tap Cart (index 2) 5 times quickly
-class _AdminAccessCounter {
-  static int _tapCount = 0;
-  static DateTime? _lastTapTime;
+/// Cart icon with an animated badge showing item count.
+class _CartBadgeIcon extends StatelessWidget {
+  final int count;
+  final bool isActive;
 
-  static bool checkTap() {
-    final now = DateTime.now();
-    if (_lastTapTime != null &&
-        now.difference(_lastTapTime!).inMilliseconds > 800) {
-      _tapCount = 0;
-    }
-    _lastTapTime = now;
-    _tapCount++;
-    if (_tapCount >= 5) {
-      _tapCount = 0;
-      return true;
-    }
-    return false;
-  }
-}
-
-// Admin-access-enabled nav bar — use this wherever you want the hidden trigger
-class AdminAwareBottomNavBar extends ConsumerStatefulWidget {
-  final int currentIndex;
-  final Function(int) onTap;
-
-  const AdminAwareBottomNavBar({
-    super.key,
-    required this.currentIndex,
-    required this.onTap,
-  });
-
-  @override
-  ConsumerState<AdminAwareBottomNavBar> createState() =>
-      _AdminAwareBottomNavBarState();
-}
-
-class _AdminAwareBottomNavBarState
-    extends ConsumerState<AdminAwareBottomNavBar> {
-  void _showAdminDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.admin_panel_settings,
-                color: AppTheme.primaryColor),
-            SizedBox(width: 8),
-            Text('Admin Access'),
-          ],
-        ),
-        content: const Text(
-            'Would you like to access the Admin Dashboard?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.router.push(const AdminLoginRoute());
-            },
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor),
-            child: const Text('Go to Admin'),
-          ),
-        ],
-      ),
-    );
-  }
+  const _CartBadgeIcon({required this.count, required this.isActive});
 
   @override
   Widget build(BuildContext context) {
-    return BottomNavigationBar(
-      currentIndex: widget.currentIndex,
-      onTap: (index) {
-        if (index == 2 && _AdminAccessCounter.checkTap()) {
-          _showAdminDialog();
-        }
-        widget.onTap(index);
-      },
-      selectedItemColor: AppTheme.primaryColor,
-      unselectedItemColor: Colors.grey,
-      type: BottomNavigationBarType.fixed,
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home_outlined),
-          activeIcon: Icon(Icons.home),
-          label: 'Home',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.checkroom_outlined),
-          activeIcon: Icon(Icons.checkroom),
-          label: 'Try On',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.shopping_cart_outlined),
-          activeIcon: Icon(Icons.shopping_cart),
-          label: 'Cart',
+    final icon = Icon(
+      isActive ? Icons.shopping_cart : Icons.shopping_cart_outlined,
+    );
+
+    if (count == 0) return icon;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        icon,
+        Positioned(
+          top: -6,
+          right: -8,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFF4444), Color(0xFFFF6B6B)],
+              ),
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.red.withOpacity(0.4),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            child: Text(
+              count > 99 ? '99+' : '$count',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                height: 1.2,
+              ),
+            ),
+          ),
         ),
       ],
     );

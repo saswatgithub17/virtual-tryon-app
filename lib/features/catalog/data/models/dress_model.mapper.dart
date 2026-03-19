@@ -43,6 +43,11 @@ class DressMapper extends ClassMapperBase<Dress> {
   static String? _$material(Dress v) => v.material;
   static const Field<Dress, String> _f$material =
       Field('material', _$material, opt: true);
+  // ── gender field ──────────────────────────────────────────────────────────
+  static String? _$gender(Dress v) => v.gender;
+  static const Field<Dress, String> _f$gender =
+      Field('gender', _$gender, opt: true);
+  // ─────────────────────────────────────────────────────────────────────────
   static String _$imageUrl(Dress v) => v.imageUrl;
   static const Field<Dress, String> _f$imageUrl =
       Field('imageUrl', _$imageUrl, key: r'image_url');
@@ -73,6 +78,7 @@ class DressMapper extends ClassMapperBase<Dress> {
     #brand: _f$brand,
     #color: _f$color,
     #material: _f$material,
+    #gender: _f$gender,
     #imageUrl: _f$imageUrl,
     #isActive: _f$isActive,
     #averageRating: _f$averageRating,
@@ -91,6 +97,7 @@ class DressMapper extends ClassMapperBase<Dress> {
         brand: data.dec(_f$brand),
         color: data.dec(_f$color),
         material: data.dec(_f$material),
+        gender: data.dec(_f$gender),
         imageUrl: data.dec(_f$imageUrl),
         isActive: data.dec(_f$isActive),
         averageRating: data.dec(_f$averageRating),
@@ -156,6 +163,7 @@ abstract class DressCopyWith<$R, $In extends Dress, $Out>
       String? brand,
       String? color,
       String? material,
+      String? gender,
       String? imageUrl,
       bool? isActive,
       double? averageRating,
@@ -185,6 +193,7 @@ class _DressCopyWithImpl<$R, $Out> extends ClassCopyWithBase<$R, Dress, $Out>
           Object? brand = $none,
           Object? color = $none,
           Object? material = $none,
+          Object? gender = $none,
           String? imageUrl,
           bool? isActive,
           Object? averageRating = $none,
@@ -200,6 +209,7 @@ class _DressCopyWithImpl<$R, $Out> extends ClassCopyWithBase<$R, Dress, $Out>
         if (brand != $none) #brand: brand,
         if (color != $none) #color: color,
         if (material != $none) #material: material,
+        if (gender != $none) #gender: gender,
         if (imageUrl != null) #imageUrl: imageUrl,
         if (isActive != null) #isActive: isActive,
         if (averageRating != $none) #averageRating: averageRating,
@@ -217,6 +227,7 @@ class _DressCopyWithImpl<$R, $Out> extends ClassCopyWithBase<$R, Dress, $Out>
       brand: data.get(#brand, or: $value.brand),
       color: data.get(#color, or: $value.color),
       material: data.get(#material, or: $value.material),
+      gender: data.get(#gender, or: $value.gender),
       imageUrl: data.get(#imageUrl, or: $value.imageUrl),
       isActive: data.get(#isActive, or: $value.isActive),
       averageRating: data.get(#averageRating, or: $value.averageRating),
@@ -326,7 +337,8 @@ class _DressSizeCopyWithImpl<$R, $Out>
   late final ClassMapperBase<DressSize> $mapper =
       DressSizeMapper.ensureInitialized();
   @override
-  $R call({String? sizeName, int? stockQuantity}) => $apply(FieldCopyWithData({
+  $R call({String? sizeName, int? stockQuantity}) =>
+      $apply(FieldCopyWithData({
         if (sizeName != null) #sizeName: sizeName,
         if (stockQuantity != null) #stockQuantity: stockQuantity
       }));

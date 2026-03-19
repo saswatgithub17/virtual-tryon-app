@@ -12,6 +12,10 @@ class Dress with DressMappable {
   final String? brand;
   final String? color;
   final String? material;
+
+  /// 'men' | 'women' | 'unisex' — nullable for backward compat with old rows
+  final String? gender;
+
   final String imageUrl;
   final bool isActive;
   final double? averageRating;
@@ -31,6 +35,7 @@ class Dress with DressMappable {
     this.brand,
     this.color,
     this.material,
+    this.gender,
     required this.imageUrl,
     this.isActive = true,
     this.averageRating,
@@ -69,10 +74,10 @@ class DressSizeHook extends MappingHook {
     if (value is String) {
       // Handle the "S:10,M:15,L:20" format from the legacy database
       return value.split(',').map((s) {
-        var parts = s.split(':');
+        final parts = s.split(':');
         return {
-          'size': parts[0],
-          'stock': int.tryParse(parts[1]) ?? 0,
+          'size': parts[0].trim(),
+          'stock': parts.length > 1 ? (int.tryParse(parts[1].trim()) ?? 0) : 0,
         };
       }).toList();
     }

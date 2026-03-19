@@ -1,446 +1,322 @@
-// =============================================
-// DRESS CONTROLLER
-// Handles all dress-related operations
-// =============================================
-
 const db = require('../config/database');
+const path = require('path');
 
-// =============================================
-// GET ALL DRESSES (with optional filters)
-// GET /api/dresses?category=Casual&minPrice=1000&maxPrice=5000
-// =============================================
-const getAllDresses = (req, res) => {
-    const { category, minPrice, maxPrice, brand, sortBy = 'created_at', order = 'DESC' } = req.query;
+// ─── GET ALL DRESSES (with gender, category, search, sort, pagination) ────────
+exports.getAllDresses = async (req, res) => {
+  try {
+    const {
+      category,
+      gender,
+      sort = 'newest',
+      search,
+      page = 1,
+      limit = 50,
+    } = req.query;
 
     let query = `
-        SELECT 
-            d.*,
-            GROUP_CONCAT(
-                CONCAT(ds.size_name, ':', ds.stock_quantity) 
-                SEPARATOR ','
-            ) as sizes
-        FROM dresses d
-        LEFT JOIN dress_sizes ds ON d.dress_id = ds.dress_id
-        WHERE d.is_active = TRUE
+      SELECT
+        d.dress_id, d.name, d.description, d.price, d.category,
+        d.brand, d.color, d.material, d.image_url, d.gender,
+        d.is_active, d.average_rating, d.total_reviews,
+        d.created_at, d.updated_at,
+        GROUP_CONCAT(
+          CONCAT(ds.size_name, ':', COALESCE(ds.stock_quantity, 0))
+          ORDER BY FIELD(ds.size_name, 'XS','S','M','L','XL','XXL')
+          SEPARATOR ','
+        ) AS sizes
+      FROM dresses d
+      LEFT JOIN dress_sizes ds ON d.dress_id = ds.dress_id
+      WHERE d.is_active = 1
     `;
-
     const params = [];
 
-    // Add filters
-    if (category) {
-        query += ' AND d.category = ?';
-        params.push(category);
+    // Gender filter
+    if (gender && gender !== 'all') {
+      query += ' AND d.gender = ?';
+      params.push(gender);
     }
 
-    if (minPrice) {
-        query += ' AND d.price >= ?';
-        params.push(parseFloat(minPrice));
+    // Category filter
+    if (category && category !== 'All') {
+      query += ' AND d.category = ?';
+      params.push(category);
     }
 
-    if (maxPrice) {
-        query += ' AND d.price <= ?';
-        params.push(parseFloat(maxPrice));
-    }
-
-    if (brand) {
-        query += ' AND d.brand = ?';
-        params.push(brand);
+    // Search filter
+    if (search && search.trim()) {
+      query += ' AND (d.name LIKE ? OR d.description LIKE ? OR d.brand LIKE ?)';
+      const q = `%${search.trim()}%`;
+      params.push(q, q, q);
     }
 
     query += ' GROUP BY d.dress_id';
 
-    // Add sorting
-    const validSortFields = ['price', 'created_at', 'average_rating', 'name'];
-    const sortField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
-    const sortOrder = order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
-    query += ` ORDER BY d.${sortField} ${sortOrder}`;
-
-    db.query(query, params, (err, results) => {
-        if (err) {
-            console.error('Error fetching dresses:', err);
-            return res.status(500).json({
-                success: false,
-                message: 'Error fetching dresses',
-                error: err.message
-            });
-        }
-
-        // Format sizes from string to array of objects
-        const formattedResults = results.map(dress => {
-            const sizesArray = dress.sizes ? dress.sizes.split(',').map(size => {
-                const [name, stock] = size.split(':');
-                return { size: name, stock: parseInt(stock) };
-            }) : [];
-
-            return {
-                ...dress,
-                sizes: sizesArray
-            };
-        });
-
-        res.json({
-            success: true,
-            count: formattedResults.length,
-            data: formattedResults
-        });
-    });
-};
-
-// =============================================
-// GET DRESS BY ID (with reviews)
-// GET /api/dresses/:id
-// =============================================
-const getDressById = (req, res) => {
-    const { id } = req.params;
-
-    const dressQuery = `
-        SELECT 
-            d.*,
-            GROUP_CONCAT(
-                CONCAT(ds.size_name, ':', ds.stock_quantity) 
-                SEPARATOR ','
-            ) as sizes
-        FROM dresses d
-        LEFT JOIN dress_sizes ds ON d.dress_id = ds.dress_id
-        WHERE d.dress_id = ?
-        GROUP BY d.dress_id
-    `;
-
-    const reviewsQuery = `
-        SELECT * FROM reviews 
-        WHERE dress_id = ? 
-        ORDER BY created_at DESC
-    `;
-
-    db.query(dressQuery, [id], (err, dressResults) => {
-        if (err) {
-            console.error('Error fetching dress:', err);
-            return res.status(500).json({
-                success: false,
-                message: 'Error fetching dress details',
-                error: err.message
-            });
-        }
-
-        if (dressResults.length === 0) {
-            return res.status(200).json({
-                success: false,
-                message: 'Dress not found',
-                data: null
-            });
-        }
-
-        const dress = dressResults[0];
-
-        // Format sizes
-        const sizesArray = dress.sizes ? dress.sizes.split(',').map(size => {
-            const [name, stock] = size.split(':');
-            return { size: name, stock: parseInt(stock) };
-        }) : [];
-
-        // Fetch reviews
-        db.query(reviewsQuery, [id], (err, reviews) => {
-            if (err) {
-                console.error('Error fetching reviews:', err);
-                reviews = [];
-            }
-
-            res.status(200).json({
-                success: true,
-                data: {
-                    ...dress,
-                    sizes: sizesArray,
-                    reviews: reviews
-                }
-            });
-        });
-    });
-};
-
-// =============================================
-// SEARCH DRESSES
-// GET /api/dresses/search/query?q=black&category=Evening
-// =============================================
-const searchDresses = (req, res) => {
-    const { q, category } = req.query;
-
-    if (!q) {
-        return res.status(400).json({
-            success: false,
-            message: 'Search query parameter "q" is required'
-        });
+    // Sort
+    switch (sort) {
+      case 'price_asc':
+        query += ' ORDER BY d.price ASC';
+        break;
+      case 'price_desc':
+        query += ' ORDER BY d.price DESC';
+        break;
+      case 'rating':
+        query += ' ORDER BY d.average_rating DESC';
+        break;
+      case 'popular':
+        query += ' ORDER BY d.total_reviews DESC';
+        break;
+      case 'newest':
+      default:
+        query += ' ORDER BY d.created_at DESC';
+        break;
     }
 
-    let query = `
-        SELECT 
-            d.*,
-            GROUP_CONCAT(
-                CONCAT(ds.size_name, ':', ds.stock_quantity) 
-                SEPARATOR ','
-            ) as sizes
-        FROM dresses d
-        LEFT JOIN dress_sizes ds ON d.dress_id = ds.dress_id
-        WHERE d.is_active = TRUE
-        AND (d.name LIKE ? OR d.description LIKE ? OR d.brand LIKE ?)
+    // Pagination
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    query += ' LIMIT ? OFFSET ?';
+    params.push(parseInt(limit), offset);
+
+    const dresses = await new Promise((resolve, reject) => {
+      db.query(query, params, (err, results) => {
+        if (err) return reject(err);
+        resolve(results);
+      });
+    });
+
+    res.json({
+      success: true,
+      data: dresses,
+      pagination: { page: parseInt(page), limit: parseInt(limit) },
+    });
+  } catch (error) {
+    console.error('getAllDresses error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch dresses' });
+  }
+};
+
+// ─── GET DRESS BY ID ─────────────────────────────────────────────────────────
+exports.getDressById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const query = `
+      SELECT
+        d.*,
+        GROUP_CONCAT(
+          CONCAT(ds.size_name, ':', COALESCE(ds.stock_quantity, 0))
+          ORDER BY FIELD(ds.size_name, 'XS','S','M','L','XL','XXL')
+          SEPARATOR ','
+        ) AS sizes
+      FROM dresses d
+      LEFT JOIN dress_sizes ds ON d.dress_id = ds.dress_id
+      WHERE d.dress_id = ? AND d.is_active = 1
+      GROUP BY d.dress_id
     `;
 
+    const results = await new Promise((resolve, reject) => {
+      db.query(query, [id], (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows);
+      });
+    });
+
+    if (!results.length) {
+      return res.status(404).json({ success: false, message: 'Dress not found' });
+    }
+
+    res.json({ success: true, data: results[0] });
+  } catch (error) {
+    console.error('getDressById error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch dress' });
+  }
+};
+
+// ─── SEARCH DRESSES ──────────────────────────────────────────────────────────
+exports.searchDresses = async (req, res) => {
+  try {
+    const { q, gender } = req.query;
+    if (!q) return res.json({ success: true, data: [] });
+
+    let query = `
+      SELECT
+        d.*,
+        GROUP_CONCAT(
+          CONCAT(ds.size_name, ':', COALESCE(ds.stock_quantity, 0))
+          ORDER BY FIELD(ds.size_name, 'XS','S','M','L','XL','XXL')
+          SEPARATOR ','
+        ) AS sizes
+      FROM dresses d
+      LEFT JOIN dress_sizes ds ON d.dress_id = ds.dress_id
+      WHERE d.is_active = 1
+        AND (d.name LIKE ? OR d.description LIKE ? OR d.brand LIKE ?)
+    `;
     const searchTerm = `%${q}%`;
     const params = [searchTerm, searchTerm, searchTerm];
 
-    if (category) {
-        query += ' AND d.category = ?';
-        params.push(category);
+    if (gender && gender !== 'all') {
+      query += ' AND d.gender = ?';
+      params.push(gender);
     }
 
-    query += ' GROUP BY d.dress_id ORDER BY d.average_rating DESC';
+    query += ' GROUP BY d.dress_id ORDER BY d.average_rating DESC LIMIT 20';
 
-    db.query(query, params, (err, results) => {
-        if (err) {
-            console.error('Error searching dresses:', err);
-            return res.status(500).json({
-                success: false,
-                message: 'Error searching dresses',
-                error: err.message
-            });
-        }
-
-        const formattedResults = results.map(dress => {
-            const sizesArray = dress.sizes ? dress.sizes.split(',').map(size => {
-                const [name, stock] = size.split(':');
-                return { size: name, stock: parseInt(stock) };
-            }) : [];
-
-            return {
-                ...dress,
-                sizes: sizesArray
-            };
-        });
-
-        res.json({
-            success: true,
-            count: formattedResults.length,
-            query: q,
-            data: formattedResults
-        });
+    const results = await new Promise((resolve, reject) => {
+      db.query(query, params, (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows);
+      });
     });
+
+    res.json({ success: true, data: results });
+  } catch (error) {
+    console.error('searchDresses error:', error);
+    res.status(500).json({ success: false, message: 'Search failed' });
+  }
 };
 
-// =============================================
-// ADD NEW DRESS (Admin Only)
-// POST /api/dresses
-// =============================================
-const addDress = (req, res) => {
+// ─── ADD DRESS (Admin) ────────────────────────────────────────────────────────
+exports.addDress = async (req, res) => {
+  try {
     const {
-        name,
-        description,
-        price,
-        category,
-        brand,
-        color,
-        material,
-        image_url,
-        sizes // Array: [{size: 'S', stock: 10}, {size: 'M', stock: 15}]
+      name, description, price, category, brand,
+      color, material, image_url, gender = 'unisex',
+      sizes = {},
     } = req.body;
 
-    // Validation
     if (!name || !price || !image_url) {
-        return res.status(400).json({
-            success: false,
-            message: 'Name, price, and image_url are required'
-        });
+      return res.status(400).json({ success: false, message: 'name, price, image_url are required' });
     }
 
-    const insertDressQuery = `
-        INSERT INTO dresses 
-        (name, description, price, category, brand, color, material, image_url)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-
-    const dressParams = [
-        name,
-        description || null,
-        price,
-        category || null,
-        brand || null,
-        color || null,
-        material || null,
-        image_url
-    ];
-
-    db.query(insertDressQuery, dressParams, (err, result) => {
-        if (err) {
-            console.error('Error adding dress:', err);
-            return res.status(500).json({
-                success: false,
-                message: 'Error adding dress',
-                error: err.message
-            });
+    const insertResult = await new Promise((resolve, reject) => {
+      db.query(
+        `INSERT INTO dresses (name, description, price, category, brand, color, material, image_url, gender)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [name, description, price, category, brand, color, material, image_url, gender],
+        (err, result) => {
+          if (err) return reject(err);
+          resolve(result);
         }
-
-        const dressId = result.insertId;
-
-        // Add sizes if provided
-        if (sizes && Array.isArray(sizes) && sizes.length > 0) {
-            const insertSizesQuery = `
-                INSERT INTO dress_sizes (dress_id, size_name, stock_quantity)
-                VALUES ?
-            `;
-
-            const sizesParams = sizes.map(s => [dressId, s.size, s.stock || 0]);
-
-            db.query(insertSizesQuery, [sizesParams], (err) => {
-                if (err) {
-                    console.error('Error adding sizes:', err);
-                }
-            });
-        }
-
-        res.status(201).json({
-            success: true,
-            message: 'Dress added successfully',
-            data: {
-                dress_id: dressId,
-                name,
-                price
-            }
-        });
+      );
     });
+
+    const dressId = insertResult.insertId;
+
+    // Insert sizes
+    const sizeNames = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+    for (const sizeName of sizeNames) {
+      const qty = parseInt(sizes[sizeName] || 0);
+      if (qty >= 0) {
+        await new Promise((resolve, reject) => {
+          db.query(
+            'INSERT INTO dress_sizes (dress_id, size_name, stock_quantity) VALUES (?, ?, ?)',
+            [dressId, sizeName, qty],
+            (err) => { if (err) return reject(err); resolve(); }
+          );
+        });
+      }
+    }
+
+    res.status(201).json({ success: true, message: 'Dress added', dress_id: dressId });
+  } catch (error) {
+    console.error('addDress error:', error);
+    res.status(500).json({ success: false, message: 'Failed to add dress' });
+  }
 };
 
-// =============================================
-// UPDATE DRESS (Admin Only)
-// PUT /api/dresses/:id
-// =============================================
-const updateDress = (req, res) => {
+// ─── UPDATE DRESS (Admin) ─────────────────────────────────────────────────────
+exports.updateDress = async (req, res) => {
+  try {
     const { id } = req.params;
     const {
-        name,
-        description,
-        price,
-        category,
-        brand,
-        color,
-        material,
-        image_url,
-        is_active
+      name, description, price, category, brand,
+      color, material, image_url, gender, is_active,
+      sizes = {},
     } = req.body;
 
-    const updateQuery = `
-        UPDATE dresses 
-        SET 
-            name = COALESCE(?, name),
-            description = COALESCE(?, description),
-            price = COALESCE(?, price),
-            category = COALESCE(?, category),
-            brand = COALESCE(?, brand),
-            color = COALESCE(?, color),
-            material = COALESCE(?, material),
-            image_url = COALESCE(?, image_url),
-            is_active = COALESCE(?, is_active)
-        WHERE dress_id = ?
-    `;
-
-    const params = [
-        name,
-        description,
-        price,
-        category,
-        brand,
-        color,
-        material,
-        image_url,
-        is_active,
-        id
-    ];
-
-    db.query(updateQuery, params, (err, result) => {
-        if (err) {
-            console.error('Error updating dress:', err);
-            return res.status(500).json({
-                success: false,
-                message: 'Error updating dress',
-                error: err.message
-            });
-        }
-
-        if (result.affectedRows === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Dress not found'
-            });
-        }
-
-        res.json({
-            success: true,
-            message: 'Dress updated successfully'
-        });
-    });
-};
-
-// =============================================
-// DELETE DRESS (Admin Only)
-// DELETE /api/dresses/:id
-// =============================================
-const deleteDress = (req, res) => {
-    const { id } = req.params;
-
-    const deleteQuery = 'DELETE FROM dresses WHERE dress_id = ?';
-
-    db.query(deleteQuery, [id], (err, result) => {
-        if (err) {
-            console.error('Error deleting dress:', err);
-            return res.status(500).json({
-                success: false,
-                message: 'Error deleting dress',
-                error: err.message
-            });
-        }
-
-        if (result.affectedRows === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Dress not found'
-            });
-        }
-
-        res.json({
-            success: true,
-            message: 'Dress deleted successfully'
-        });
-    });
-};
-
-// =============================================
-// UPLOAD DRESS IMAGE (Admin Only)
-// POST /api/dresses/upload
-// =============================================
-const uploadDressImage = (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({
-            success: false,
-            message: 'No image file uploaded'
-        });
+    // Auto-deactivate if ALL sizes are out of stock
+    let effectiveActive = is_active;
+    const sizeValues = Object.values(sizes).map(Number);
+    if (sizeValues.length > 0 && sizeValues.every((v) => v === 0)) {
+      effectiveActive = 0;
     }
 
-    const imageUrl = `/uploads/dresses/${req.file.filename}`;
-
-    res.json({
-        success: true,
-        message: 'Image uploaded successfully',
-        data: {
-            filename: req.file.filename,
-            url: imageUrl,
-            size: req.file.size
-        }
+    await new Promise((resolve, reject) => {
+      db.query(
+        `UPDATE dresses
+         SET name=?, description=?, price=?, category=?, brand=?,
+             color=?, material=?, image_url=?, gender=?, is_active=?,
+             updated_at=NOW()
+         WHERE dress_id=?`,
+        [name, description, price, category, brand, color, material,
+         image_url, gender, effectiveActive, id],
+        (err) => { if (err) return reject(err); resolve(); }
+      );
     });
+
+    // Update sizes
+    const sizeNames = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+    for (const sizeName of sizeNames) {
+      if (sizes[sizeName] !== undefined) {
+        const qty = parseInt(sizes[sizeName]);
+        await new Promise((resolve, reject) => {
+          db.query(
+            `INSERT INTO dress_sizes (dress_id, size_name, stock_quantity)
+             VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE stock_quantity = ?`,
+            [id, sizeName, qty, qty],
+            (err) => { if (err) return reject(err); resolve(); }
+          );
+        });
+      }
+    }
+
+    res.json({ success: true, message: 'Dress updated' });
+  } catch (error) {
+    console.error('updateDress error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update dress' });
+  }
 };
 
-module.exports = {
-    getAllDresses,
-    getDressById,
-    searchDresses,
-    addDress,
-    updateDress,
-    deleteDress,
-    uploadDressImage
+// ─── DELETE DRESS (Admin) ─────────────────────────────────────────────────────
+exports.deleteDress = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await new Promise((resolve, reject) => {
+      db.query(
+        'UPDATE dresses SET is_active = 0 WHERE dress_id = ?',
+        [id],
+        (err) => { if (err) return reject(err); resolve(); }
+      );
+    });
+    res.json({ success: true, message: 'Dress deactivated' });
+  } catch (error) {
+    console.error('deleteDress error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete dress' });
+  }
+};
+
+// ─── UPLOAD DRESS IMAGE (Admin) ───────────────────────────────────────────────
+exports.uploadDressImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No image file uploaded' });
+    }
+    const imageUrl = `/uploads/dresses/${req.file.filename}`;
+    const { id } = req.params;
+
+    if (id) {
+      await new Promise((resolve, reject) => {
+        db.query(
+          'UPDATE dresses SET image_url = ? WHERE dress_id = ?',
+          [imageUrl, id],
+          (err) => { if (err) return reject(err); resolve(); }
+        );
+      });
+    }
+
+    res.json({ success: true, image_url: imageUrl, message: 'Image uploaded' });
+  } catch (error) {
+    console.error('uploadDressImage error:', error);
+    res.status(500).json({ success: false, message: 'Failed to upload image' });
+  }
 };
