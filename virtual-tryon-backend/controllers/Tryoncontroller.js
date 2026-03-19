@@ -60,24 +60,32 @@ const processTryOn = async (req, res) => {
                 });
             }
 
-            // Build dress image paths (handle both absolute and relative paths)
-            const dressImagePaths = dresses.map(dress => {
-                let imagePath = dress.image_url;
-                
-                // If it's a relative path starting with /uploads
-                if (imagePath.startsWith('/uploads')) {
-                    imagePath = '.' + imagePath;
-                }
-                
-                // Check if file exists
-                if (!fs.existsSync(imagePath)) {
-                    console.warn(`⚠️ Dress image not found: ${imagePath}`);
-                    // Return null for missing images
-                    return null;
-                }
-                
-                return imagePath;
-            }).filter(path => path !== null);
+            // Build dress meta (ids/names + file path) while keeping indexes aligned.
+            // Only keep dresses whose image file exists on disk.
+            const dressMeta = dresses
+                .map(dress => {
+                    let imagePath = dress.image_url;
+
+                    // If it's a relative path starting with /uploads
+                    if (imagePath.startsWith('/uploads')) {
+                        imagePath = '.' + imagePath;
+                    }
+
+                    if (!fs.existsSync(imagePath)) {
+                        console.warn(`⚠️ Dress image not found: ${imagePath}`);
+                        return null;
+                    }
+
+                    return {
+                        dressId: dress.dress_id,
+                        dressName: dress.name,
+                        originalDressImage: dress.image_url,
+                        imagePath,
+                    };
+                })
+                .filter(Boolean);
+
+            const dressImagePaths = dressMeta.map(m => m.imagePath);
 
             if (dressImagePaths.length === 0) {
                 return res.status(404).json({
@@ -91,16 +99,21 @@ const processTryOn = async (req, res) => {
             try {
                 // ALWAYS try AI - don't check availability first
                 console.log('✅ Attempting AI-powered try-on');
-                
-                // Process with AI - let it fail properly so we can see real errors
-                const results = await tryonService.processMultipleTryOns(userPhotoPath, dressImagePaths);
 
-                // Add dress info to results
-                const enrichedResults = results.map((result, index) => ({
-                    ...result,
-                    dressId: dresses[index].dress_id,
-                    dressName: dresses[index].name,
-                    originalDressImage: dresses[index].image_url
+                const results = await tryonService.processMultipleTryOns(
+                    userPhotoPath,
+                    dressImagePaths
+                );
+
+                // Merge service results with dress metadata by index.
+                const enrichedResults = results.map((r, index) => ({
+                    success: r.success === true,
+                    resultUrl: r.resultUrl ?? null,
+                    method: r.method ?? 'Fallback',
+                    error: r.error ?? null,
+                    dressId: dressMeta[index].dressId,
+                    dressName: dressMeta[index].dressName,
+                    originalDressImage: dressMeta[index].originalDressImage,
                 }));
 
                 // Save try-on history to database (optional)
@@ -114,47 +127,57 @@ const processTryOn = async (req, res) => {
                 const resultPaths = enrichedResults
                     .filter(r => r.success)
                     .map(r => r.resultUrl)
+                    .filter(Boolean)
                     .join(',');
 
-                db.query(insertHistoryQuery, [
-                    sessionId,
-                    dressIdsArray.join(','),
-                    userPhotoPath,
-                    resultPaths
-                ], (err) => {
-                    if (err) {
-                        console.error('Error saving try-on history:', err);
+                db.query(
+                    insertHistoryQuery,
+                    [
+                        sessionId,
+                        dressIdsArray.join(','),
+                        userPhotoPath,
+                        resultPaths,
+                    ],
+                    (err) => {
+                        if (err) console.error('Error saving try-on history:', err);
                     }
-                });
+                );
 
-                // Return results with Tron-style JSON format
                 const successCount = enrichedResults.filter(r => r.success).length;
-                
-                // Build tryon result URLs array
+
                 const tryonResults = enrichedResults.map(result => ({
                     success: result.success,
                     dressId: result.dressId,
                     dressName: result.dressName,
                     originalDressImage: result.originalDressImage,
                     tryonResultUrl: result.success ? result.resultUrl : null,
-                    method: result.method || (result.aiGenerated ? 'IDM-VTON AI' : 'Fallback'),
-                    error: result.error || null
+                    method: result.method,
+                    error: result.error,
                 }));
 
-                // Create main tryon result URL (first successful one)
-                const firstSuccessfulResult = tryonResults.find(r => r.success);
-                const mainTryonResultUrl = firstSuccessfulResult ? firstSuccessfulResult.tryonResultUrl : null;
+                const firstSuccessfulResult = tryonResults.find(
+                    r => r.success && r.tryonResultUrl
+                );
+                const mainTryonResultUrl = firstSuccessfulResult
+                    ? firstSuccessfulResult.tryonResultUrl
+                    : null;
 
-                // Return Tron-style JSON response
+                const hasAnySuccess = successCount > 0;
+                const firstError = tryonResults.find(r => !r.success && r.error)?.error;
+                const fallbackMessage = firstError
+                    ? `AI try-on failed: ${String(firstError).slice(0, 200)}`
+                    : 'AI try-on failed: no output images were generated.';
                 res.json({
-                    success: true,
-                    message: `Try-on completed for ${successCount}/${dressImagePaths.length} dresses`,
+                    success: hasAnySuccess,
+                    message: hasAnySuccess
+                        ? `Try-on completed for ${successCount}/${dressImagePaths.length} dresses`
+                        : fallbackMessage,
                     sessionId,
-                    tryonResultUrl: mainTryonResultUrl,
+                    tryonResultUrl: hasAnySuccess ? mainTryonResultUrl : null,
                     userPhoto: `/uploads/user-photos/${path.basename(userPhotoPath)}`,
                     totalDresses: dressImagePaths.length,
                     successfulTryOns: successCount,
-                    results: tryonResults
+                    results: tryonResults,
                 });
 
             } catch (error) {

@@ -17,16 +17,12 @@ class DressDetailPage extends ConsumerStatefulWidget {
   ConsumerState<DressDetailPage> createState() => _DressDetailPageState();
 }
 
-class _DressDetailPageState extends ConsumerState<DressDetailPage>
-    with SingleTickerProviderStateMixin {
+class _DressDetailPageState extends ConsumerState<DressDetailPage> {
   int _selectedSizeIndex = 0;
   int _quantity = 1;
   bool _descExpanded = false;
 
-  late final AnimationController _pulseCtrl;
-  late final Animation<double> _pulse;
-
-  // ─── Size helpers ─────────────────────────────────────────────────────────
+  // ─── Sizes ────────────────────────────────────────────────────────────────
 
   List<DressSize> get _sizes {
     final raw = widget.dress.sizes;
@@ -41,41 +37,20 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage>
     return raw;
   }
 
-  DressSize get _selectedSize => _sizes[_selectedSizeIndex];
-  int get _stock => _selectedSize.stockQuantity;
-  bool get _isLowStock => _stock > 0 && _stock < 3;
+  DressSize get _sel => _sizes[_selectedSizeIndex];
+  int get _stock => _sel.stockQuantity;
+  bool get _isLow => _stock > 0 && _stock < 3;
   bool get _isOOS => _stock == 0;
 
-  bool _isInCart(List cartItems) => cartItems.any((item) =>
-      item.dress.dressId == widget.dress.dressId &&
-      item.selectedSize == _selectedSize.sizeName);
-
-  String _stockLabel(DressSize s) {
-    final q = s.stockQuantity;
-    if (q == 0) return 'OOS';
-    if (q < 3) return '$q left!';
-    return '$q';
-  }
+  bool _inCart(List items) => items.any((i) =>
+      i.dress.dressId == widget.dress.dressId &&
+      i.selectedSize == _sel.sizeName);
 
   @override
   void initState() {
     super.initState();
-    final firstInStock = _sizes.indexWhere((s) => s.stockQuantity > 0);
-    if (firstInStock >= 0) _selectedSizeIndex = firstInStock;
-
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    )..repeat(reverse: true);
-    _pulse = Tween<double>(begin: 0.97, end: 1.03).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _pulseCtrl.dispose();
-    super.dispose();
+    final idx = _sizes.indexWhere((s) => s.stockQuantity > 0);
+    if (idx >= 0) _selectedSizeIndex = idx;
   }
 
   // ─── Build ────────────────────────────────────────────────────────────────
@@ -83,279 +58,176 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage>
   @override
   Widget build(BuildContext context) {
     final cartItems = ref.watch(cartControllerProvider);
-    final inCart = _isInCart(cartItems);
+    final inCart = _inCart(cartItems);
 
     return Scaffold(
+      // ── FIX: No bottomNavigationBar — the button lives INSIDE the
+      // SingleChildScrollView so it is ALWAYS visible and can NEVER
+      // expand to fill the screen (which caused the blank white screen bug).
       backgroundColor: Colors.white,
-      // ── Regular AppBar: always visible, no SliverAppBar complexity ──────────
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppTheme.primaryColor,
+        foregroundColor: Colors.white,
         elevation: 0,
-        leading: GestureDetector(
-          onTap: () => context.router.pop(),
-          child: Container(
-            margin: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.12),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child:
-                const Icon(Icons.arrow_back, color: Color(0xFF1A1A2E), size: 20),
-          ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.router.pop(),
+        ),
+        title: Text(
+          widget.dress.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
       ),
-      // ── Body: SingleChildScrollView — ALL content immediately visible ───────
       body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
+        physics: const ClampingScrollPhysics(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildImageSection(),        // dress photo
-            _buildNamePriceSection(),    // name + price + rating
-            _buildDivider(),
-            _buildInfoChips(),           // brand / color / material
-            _buildDivider(),
-            _buildSizeSection(),         // size chips with stock counts
-            if (_isLowStock) _buildUrgencyBanner(),
-            if (_isOOS) _buildOOSBanner(),
-            _buildDivider(),
-            _buildDescription(),
-            const SizedBox(height: 120), // breathing room above bottom bar
+            // ── 1. Image ────────────────────────────────────────────────────
+            _image(),
+
+            // ── 2. Price + Rating ────────────────────────────────────────────
+            _priceRow(),
+            const Divider(height: 1, color: Color(0xFFEEEEEE)),
+
+            // ── 3. Info chips ────────────────────────────────────────────────
+            _infoChips(),
+            const Divider(height: 1, color: Color(0xFFEEEEEE)),
+
+            // ── 4. Size selector ────────────────────────────────────────────
+            _sizeSection(),
+
+            // ── 5. Low stock warning ─────────────────────────────────────────
+            if (_isLow) _lowStockBanner(),
+            if (_isOOS) _oosBanner(),
+            const Divider(height: 1, color: Color(0xFFEEEEEE)),
+
+            // ── 6. Description ───────────────────────────────────────────────
+            _description(),
+            const SizedBox(height: 24),
+
+            // ── 7. Quantity + CTA — INSIDE scroll, always visible ────────────
+            _cartSection(inCart),
+            const SizedBox(height: 32),
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomBar(inCart),
     );
   }
 
-  Widget _buildDivider() =>
-      const Divider(height: 1, thickness: 1, color: Color(0xFFF2F2F2));
+  // ─── 1. Image ─────────────────────────────────────────────────────────────
 
-  // ─── Dress Image ──────────────────────────────────────────────────────────
-  // Fixed height — content is immediately visible below it without scrolling.
-
-  Widget _buildImageSection() {
-    return Stack(
-      children: [
-        // Image — 280px keeps it prominent but leaves room for content
-        SizedBox(
-          width: double.infinity,
-          height: 280,
-          child: CachedNetworkImage(
-            imageUrl: ApiConfig.getUploadUrl(widget.dress.imageUrl),
-            fit: BoxFit.cover,
-            placeholder: (_, __) => Container(
-              color: Colors.grey[200],
-              child: const Center(child: CircularProgressIndicator()),
-            ),
-            errorWidget: (_, __, ___) => Container(
-              color: Colors.grey[100],
-              child: Icon(Icons.image_not_supported,
-                  color: Colors.grey[400], size: 64),
-            ),
-          ),
+  Widget _image() {
+    return SizedBox(
+      width: double.infinity,
+      height: 300,
+      child: CachedNetworkImage(
+        imageUrl: ApiConfig.getUploadUrl(widget.dress.imageUrl),
+        fit: BoxFit.cover,
+        placeholder: (_, __) => Container(
+          height: 300,
+          color: const Color(0xFFEEEEEE),
+          child: const Center(child: CircularProgressIndicator()),
         ),
-        // Gradient overlay at the bottom for the category badge
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                stops: const [0.5, 1.0],
-                colors: [Colors.transparent, Colors.black.withOpacity(0.55)],
-              ),
-            ),
-          ),
+        errorWidget: (_, __, ___) => Container(
+          height: 300,
+          color: const Color(0xFFEEEEEE),
+          child: const Icon(Icons.image_not_supported,
+              size: 64, color: Colors.grey),
         ),
-        // Category + Gender badges
-        Positioned(
-          bottom: 14,
-          left: 16,
-          right: 16,
-          child: Row(
-            children: [
-              if (widget.dress.category != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.9),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    widget.dress.category!.toUpperCase(),
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2),
-                  ),
-                ),
-              const SizedBox(width: 8),
-              if (widget.dress.gender != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: widget.dress.gender == 'women'
-                        ? const Color(0xFFE91E8C).withOpacity(0.88)
-                        : AppTheme.primaryColor.withOpacity(0.88),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    widget.dress.gender == 'women' ? '👗 Women' : '👔 Men',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 
-  // ─── Name + Price + Rating ────────────────────────────────────────────────
+  // ─── 2. Price + Rating ────────────────────────────────────────────────────
 
-  Widget _buildNamePriceSection() {
+  Widget _priceRow() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-      child: Column(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Dress name
-          Text(
-            widget.dress.name,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1A1A2E),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Price with gradient shader
-              ShaderMask(
-                shaderCallback: (bounds) => const LinearGradient(
-                  colors: [AppTheme.primaryColor, AppTheme.secondaryColor],
-                ).createShader(bounds),
-                child: Text(
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
                   '₹${widget.dress.price.toStringAsFixed(0)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white, // masked by shader
+                    color: AppTheme.primaryColor,
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'incl. taxes',
-                style: TextStyle(fontSize: 11, color: Colors.grey),
-              ),
-              const Spacer(),
-              // Rating badge
-              if ((widget.dress.averageRating ?? 0) > 0)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                            colors: [Color(0xFFFFA000), Color(0xFFFFD54F)]),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.star,
-                              color: Colors.white, size: 14),
-                          const SizedBox(width: 4),
-                          Text(
-                            widget.dress.averageRating!.toStringAsFixed(1),
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${widget.dress.totalReviews ?? 0} reviews',
-                      style: const TextStyle(
-                          fontSize: 10, color: Colors.grey),
-                    ),
-                  ],
+                const Text(
+                  'Inclusive of all taxes',
+                  style: TextStyle(fontSize: 11, color: Colors.grey),
                 ),
-            ],
+              ],
+            ),
           ),
+          if ((widget.dress.averageRating ?? 0) > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFA000),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.star, color: Colors.white, size: 14),
+                  const SizedBox(width: 4),
+                  Text(
+                    widget.dress.averageRating!.toStringAsFixed(1),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
   }
 
-  // ─── Info Chips (Brand / Color / Material) ────────────────────────────────
+  // ─── 3. Info chips ────────────────────────────────────────────────────────
 
-  Widget _buildInfoChips() {
-    final infos = <MapEntry<String, String>>[
-      if (widget.dress.brand != null)
-        MapEntry('Brand', widget.dress.brand!),
-      if (widget.dress.color != null)
-        MapEntry('Color', widget.dress.color!),
-      if (widget.dress.material != null)
-        MapEntry('Material', widget.dress.material!),
-    ];
+  Widget _infoChips() {
+    final infos = <MapEntry<String, String>>[];
+    if (widget.dress.brand != null)
+      infos.add(MapEntry('Brand', widget.dress.brand!));
+    if (widget.dress.color != null)
+      infos.add(MapEntry('Color', widget.dress.color!));
+    if (widget.dress.material != null)
+      infos.add(MapEntry('Material', widget.dress.material!));
+
     if (infos.isEmpty) return const SizedBox.shrink();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Wrap(
-        spacing: 10,
+        spacing: 8,
         runSpacing: 8,
         children: infos
             .map((e) => Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 7),
+                      horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF5F0FF),
+                    color: const Color(0xFFF3F0FF),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                        color: AppTheme.primaryColor.withOpacity(0.25)),
+                    border: Border.all(color: Colors.deepPurple.shade100),
                   ),
-                  child: RichText(
-                    text: TextSpan(children: [
-                      TextSpan(
-                        text: '${e.key}: ',
-                        style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey,
-                            fontFamily: 'Inter'),
-                      ),
-                      TextSpan(
-                        text: e.value,
-                        style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF4A148C),
-                            fontFamily: 'Inter'),
-                      ),
-                    ]),
+                  child: Text(
+                    '${e.key}: ${e.value}',
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF4A148C)),
                   ),
                 ))
             .toList(),
@@ -363,108 +235,95 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage>
     );
   }
 
-  // ─── Size Selector with stock counts ─────────────────────────────────────
+  // ─── 4. Size selector ─────────────────────────────────────────────────────
 
-  Widget _buildSizeSection() {
+  Widget _sizeSection() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Text(
-                'Select Size',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A1A2E),
-                ),
-              ),
-              const Spacer(),
-              if (!_isOOS) _stockPill(),
-            ],
+          const Text(
+            'Select Size',
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1A1A2E)),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Wrap(
             spacing: 10,
             runSpacing: 10,
             children: List.generate(_sizes.length, (i) {
               final s = _sizes[i];
-              final isSelected = _selectedSizeIndex == i;
-              final isOos = s.stockQuantity == 0;
-              final isLow = s.stockQuantity > 0 && s.stockQuantity < 3;
+              final sel = _selectedSizeIndex == i;
+              final oos = s.stockQuantity == 0;
+              final low = s.stockQuantity > 0 && s.stockQuantity < 3;
 
               return GestureDetector(
-                onTap: isOos
+                onTap: oos
                     ? null
                     : () => setState(() {
                           _selectedSizeIndex = i;
                           _quantity = 1;
                         }),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  width: 72,
-                  padding: const EdgeInsets.symmetric(vertical: 11),
+                child: Container(
+                  width: 68,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
-                    color: isOos
-                        ? Colors.grey[50]
-                        : isSelected
+                    color: oos
+                        ? Colors.grey[100]
+                        : sel
                             ? AppTheme.primaryColor
-                            : isLow
-                                ? const Color(0xFFFFF3F3)
+                            : low
+                                ? const Color(0xFFFFF0F0)
                                 : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      width: isSelected ? 2 : 1.5,
-                      color: isOos
-                          ? Colors.grey[200]!
-                          : isSelected
+                      width: sel ? 2 : 1,
+                      color: oos
+                          ? Colors.grey[300]!
+                          : sel
                               ? AppTheme.primaryColor
-                              : isLow
-                                  ? const Color(0xFFFF4444)
+                              : low
+                                  ? Colors.red
                                   : Colors.grey[300]!,
                     ),
-                    boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                                color:
-                                    AppTheme.primaryColor.withOpacity(0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3))
-                          ]
-                        : null,
                   ),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         s.sizeName,
+                        textAlign: TextAlign.center,
                         style: TextStyle(
+                          fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                          color: isOos
+                          color: oos
                               ? Colors.grey[400]
-                              : isSelected
+                              : sel
                                   ? Colors.white
-                                  : const Color(0xFF1A1A2E),
-                          decoration: isOos
-                              ? TextDecoration.lineThrough
-                              : null,
+                                  : Colors.black87,
+                          decoration:
+                              oos ? TextDecoration.lineThrough : null,
                         ),
                       ),
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 2),
                       Text(
-                        _stockLabel(s),
+                        oos
+                            ? 'OOS'
+                            : low
+                                ? '${s.stockQuantity} left'
+                                : '${s.stockQuantity}',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.w600,
-                          color: isOos
+                          color: oos
                               ? Colors.grey[400]
-                              : isSelected
+                              : sel
                                   ? Colors.white70
-                                  : isLow
-                                      ? const Color(0xFFFF4444)
+                                  : low
+                                      ? Colors.red
                                       : Colors.grey[500],
                         ),
                       ),
@@ -479,36 +338,28 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage>
     );
   }
 
-  Widget _stockPill() {
+  // ─── 5. Banners ───────────────────────────────────────────────────────────
+
+  Widget _lowStockBanner() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: _isLowStock
-            ? const Color(0xFFFFF3F3)
-            : const Color(0xFFF0FFF4),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: _isLowStock ? const Color(0xFFFF4444) : Colors.green,
-        ),
+        gradient: const LinearGradient(
+            colors: [Color(0xFFFF416C), Color(0xFFFF4B2B)]),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            _isLowStock
-                ? Icons.local_fire_department
-                : Icons.inventory_2_outlined,
-            size: 12,
-            color: _isLowStock ? const Color(0xFFFF4444) : Colors.green,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            '$_stock in stock',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color:
-                  _isLowStock ? const Color(0xFFFF4444) : Colors.green,
+          const Text('🔥', style: TextStyle(fontSize: 20)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Only $_stock left in size ${_sel.sizeName}! Order now!',
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13),
             ),
           ),
         ],
@@ -516,117 +367,60 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage>
     );
   }
 
-  // ─── Urgency Banner ───────────────────────────────────────────────────────
-
-  Widget _buildUrgencyBanner() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-      child: ScaleTransition(
-        scale: _pulse,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-                colors: [Color(0xFFFF416C), Color(0xFFFF4B2B)]),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.red.withOpacity(0.35),
-                  blurRadius: 14,
-                  offset: const Offset(0, 5)),
-            ],
-          ),
-          child: Row(
-            children: [
-              const Text('🔥', style: TextStyle(fontSize: 24)),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Only $_stock left in size ${_selectedSize.sizeName}!',
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14),
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'This size is selling fast — order now!',
-                      style:
-                          TextStyle(color: Colors.white70, fontSize: 11),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+  Widget _oosBanner() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.info_outline, color: Colors.grey, size: 18),
+          SizedBox(width: 8),
+          Text('Out of stock in this size. Pick another.',
+              style:
+                  TextStyle(color: Colors.grey, fontWeight: FontWeight.w500)),
+        ],
       ),
     );
   }
 
-  Widget _buildOOSBanner() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[300]!),
-        ),
-        child: const Row(
-          children: [
-            Icon(Icons.info_outline, color: Colors.grey, size: 18),
-            SizedBox(width: 10),
-            Text(
-              'Out of stock in this size. Pick another.',
-              style: TextStyle(
-                  color: Colors.grey, fontWeight: FontWeight.w500),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // ─── 6. Description ───────────────────────────────────────────────────────
 
-  // ─── Description ──────────────────────────────────────────────────────────
-
-  Widget _buildDescription() {
+  Widget _description() {
     final desc = widget.dress.description ?? 'No description available.';
-    final isLong = desc.length > 130;
-    final preview =
-        isLong && !_descExpanded ? '${desc.substring(0, 130)}…' : desc;
+    final isLong = desc.length > 150;
+    final text =
+        isLong && !_descExpanded ? '${desc.substring(0, 150)}…' : desc;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Description',
-            style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1A1A2E)),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            preview,
-            style: const TextStyle(
-                fontSize: 14, color: Color(0xFF5A5A72), height: 1.65),
-          ),
+          const Text('Description',
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1A2E))),
+          const SizedBox(height: 8),
+          Text(text,
+              style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF5A5A72),
+                  height: 1.6)),
           if (isLong)
             GestureDetector(
               onTap: () =>
                   setState(() => _descExpanded = !_descExpanded),
               child: Padding(
-                padding: const EdgeInsets.only(top: 6),
+                padding: const EdgeInsets.only(top: 4),
                 child: Text(
                   _descExpanded ? 'Read less ▲' : 'Read more ▼',
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: AppTheme.primaryColor,
                       fontWeight: FontWeight.w600,
                       fontSize: 13),
@@ -638,126 +432,123 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage>
     );
   }
 
-  // ─── Bottom Bar (counter + CTA) ───────────────────────────────────────────
+  // ─── 7. Quantity + Cart button — inside scroll, no bottomNavigationBar ─────
+  // This is the KEY FIX. By putting the cart button here instead of in
+  // bottomNavigationBar, it can never expand to fill the screen.
 
-  Widget _buildBottomBar(bool inCart) {
+  Widget _cartSection(bool inCart) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius:
-            const BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 16,
-              offset: const Offset(0, -4)),
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          children: [
-            if (!_isOOS && !inCart) ...[
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                      color: AppTheme.primaryColor.withOpacity(0.4)),
-                  borderRadius: BorderRadius.circular(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Quantity row — only shown before adding to cart
+          if (!_isOOS && !inCart) ...[
+            Row(
+              children: [
+                const Text('Quantity',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1A1A2E))),
+                const Spacer(),
+                // − stepper
+                _qtyBtn(Icons.remove_circle_outline, () {
+                  if (_quantity > 1) setState(() => _quantity--);
+                }),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    '$_quantity',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    _qtyBtn(Icons.remove,
-                        () { if (_quantity > 1) setState(() => _quantity--); }),
-                    SizedBox(
-                      width: 36,
-                      child: Center(
-                        child: Text('$_quantity',
-                            style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1A1A2E))),
-                      ),
-                    ),
-                    _qtyBtn(Icons.add,
-                        () { if (_quantity < _stock) setState(() => _quantity++); }),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 14),
-            ],
-            Expanded(
-              child: SizedBox(
-                height: 54,
-                child: _isOOS
-                    ? _disabledBtn()
-                    : inCart
-                        ? _goToCartBtn()
-                        : _addToCartBtn(),
-              ),
+                // + stepper
+                _qtyBtn(Icons.add_circle_outline, () {
+                  if (_quantity < _stock) setState(() => _quantity++);
+                }),
+              ],
             ),
+            const SizedBox(height: 12),
           ],
-        ),
+          // CTA button — full width
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: _isOOS
+                ? ElevatedButton(
+                    onPressed: null,
+                    style: ElevatedButton.styleFrom(
+                      disabledBackgroundColor: Colors.grey[300],
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Out of Stock',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey)),
+                  )
+                : inCart
+                    ? ElevatedButton.icon(
+                        onPressed: () =>
+                            context.router.push(const CartRoute()),
+                        icon: const Icon(Icons.shopping_cart),
+                        label: const Text('Go to Cart',
+                            style: TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF00C853),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      )
+                    : ElevatedButton.icon(
+                        onPressed: () {
+                          ref
+                              .read(cartControllerProvider.notifier)
+                              .addToCart(
+                                widget.dress,
+                                quantity: _quantity,
+                                size: _sel.sizeName,
+                              );
+                        },
+                        icon: const Icon(Icons.shopping_cart_outlined),
+                        label: const Text('Add to Cart',
+                            style: TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _qtyBtn(IconData icon, VoidCallback onTap) => GestureDetector(
         onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          child: Icon(icon, size: 18, color: AppTheme.primaryColor),
-        ),
+        child: Icon(icon, color: AppTheme.primaryColor, size: 28),
       );
-
-  Widget _addToCartBtn() => ElevatedButton.icon(
-        onPressed: _addToCart,
-        icon: const Icon(Icons.shopping_cart_outlined),
-        label: const Text('Add to Cart',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.primaryColor,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
-        ),
-      );
-
-  Widget _goToCartBtn() => ElevatedButton.icon(
-        onPressed: () => context.router.push(const CartRoute()),
-        icon: const Icon(Icons.shopping_cart),
-        label: const Text('Go to Cart',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF00C853),
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
-        ),
-      );
-
-  Widget _disabledBtn() => ElevatedButton(
-        onPressed: null,
-        style: ElevatedButton.styleFrom(
-          disabledBackgroundColor: Colors.grey[300],
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
-        ),
-        child: const Text('Out of Stock',
-            style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey)),
-      );
-
-  void _addToCart() {
-    ref.read(cartControllerProvider.notifier).addToCart(
-          widget.dress,
-          quantity: _quantity,
-          size: _selectedSize.sizeName,
-        );
-    // Button auto-switches to "Go to Cart" via ref.watch
-  }
 }

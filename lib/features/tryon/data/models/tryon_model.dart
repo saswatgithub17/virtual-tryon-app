@@ -36,7 +36,10 @@ class TryOnResult {
       tryonResultUrl: json['tryonResultUrl']?.toString(),
       resultUrl: json['resultUrl']?.toString(),
       method: json['method']?.toString(),
-      aiGenerated: json['aiGenerated'] == true || json['method'] != null,
+      aiGenerated: json['aiGenerated'] == true ||
+          (json['success'] == true &&
+              json['method'] != null &&
+              json['method'] != 'Fallback'),
       error: json['error']?.toString(),
       dressIndex: json['dressIndex'] is int ? json['dressIndex'] : int.tryParse(json['dressIndex']?.toString() ?? ''),
     );
