@@ -153,9 +153,7 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
         ),
         onChanged: (value) {
           setState(() {});
-          ref
-              .read(catalogControllerProvider.notifier)
-              .searchDresses(value);
+          ref.read(catalogControllerProvider.notifier).searchDresses(value);
         },
       ),
     );
@@ -184,9 +182,7 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: GestureDetector(
                 onTap: () {
-                  ref
-                      .read(catalogControllerProvider.notifier)
-                      .setGender(f.$1);
+                  ref.read(catalogControllerProvider.notifier).setGender(f.$1);
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
@@ -196,8 +192,14 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
                     gradient: isSelected
                         ? LinearGradient(
                             colors: isWomen
-                                ? [const Color(0xFFE91E8C), const Color(0xFFFF6B9D)]
-                                : [AppTheme.primaryColor, AppTheme.secondaryColor],
+                                ? [
+                                    const Color(0xFFE91E8C),
+                                    const Color(0xFFFF6B9D)
+                                  ]
+                                : [
+                                    AppTheme.primaryColor,
+                                    AppTheme.secondaryColor
+                                  ],
                           )
                         : null,
                     color: isSelected ? null : Colors.grey[100],
@@ -223,9 +225,8 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
                       f.$2,
                       style: TextStyle(
                         color: isSelected ? Colors.white : Colors.grey[700],
-                        fontWeight: isSelected
-                            ? FontWeight.bold
-                            : FontWeight.w500,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.w500,
                         fontSize: 13,
                       ),
                     ),
@@ -244,20 +245,25 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
     final selectedCategory =
         ref.watch(catalogControllerProvider.notifier).selectedCategory;
 
+    final baseCategories =
+        AppConfig.categories.where((c) => c != 'All').toList();
+    final chips = <String>['All', 'Suggestion', ...baseCategories];
+
     return Container(
       color: Colors.white,
       height: 44,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount: AppConfig.categories.length,
+        itemCount: chips.length,
         itemBuilder: (context, index) {
-          final category = AppConfig.categories[index];
+          final category = chips[index];
           final isSelected = selectedCategory == category;
+          final label = category == 'Suggestion' ? '✨ Suggestion' : category;
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
             child: ChoiceChip(
-              label: Text(category),
+              label: Text(label),
               selected: isSelected,
               onSelected: (_) => ref
                   .read(catalogControllerProvider.notifier)
@@ -269,8 +275,7 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
               ),
               labelStyle: TextStyle(
                 color: isSelected ? Colors.white : AppTheme.textPrimary,
-                fontWeight:
-                    isSelected ? FontWeight.bold : FontWeight.normal,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 fontSize: 12,
               ),
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -360,8 +365,8 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
               child: Stack(
                 children: [
                   ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(16)),
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(16)),
                     child: CachedNetworkImage(
                       imageUrl: ApiConfig.getUploadUrl(dress.imageUrl),
                       fit: BoxFit.cover,

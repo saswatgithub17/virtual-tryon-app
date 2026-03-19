@@ -27,7 +27,12 @@ class CatalogController extends _$CatalogController {
       final params = <String, String>{};
 
       if (_selectedCategory != 'All') {
-        params['category'] = _selectedCategory;
+        // "Suggestion" is a UI-only chip that maps to a recommendation sort.
+        if (_selectedCategory == 'Suggestion') {
+          params['sort'] = 'rating';
+        } else {
+          params['category'] = _selectedCategory;
+        }
       }
       if (_selectedGender != 'all') {
         params['gender'] = _selectedGender;
@@ -59,8 +64,7 @@ class CatalogController extends _$CatalogController {
       }
 
       final dresses = rawList
-          .map((item) =>
-              Dress.fromMap(Map<String, dynamic>.from(item as Map)))
+          .map((item) => Dress.fromMap(Map<String, dynamic>.from(item as Map)))
           .toList();
 
       // Shuffle when "All" so men/women are interleaved instead of batched
