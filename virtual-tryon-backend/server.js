@@ -75,6 +75,18 @@ app.get('/', (_req, res) => {
   });
 });
 
+app.get('/download-app', (req, res) => {
+  const pagePath = require('path').join(__dirname, 'uploads', 'apk', 'index.html');
+  const fs = require('fs');
+  if (fs.existsSync(pagePath)) {
+    res.sendFile(pagePath);
+  } else {
+    res.status(404).send(
+      '<h2>Run <code>node apk-share.js</code> first to generate the download page.</h2>'
+    );
+  }
+});
+ 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 app.use('/api/dresses', dressRoutes);
 app.use('/api/orders', orderRoutes);
