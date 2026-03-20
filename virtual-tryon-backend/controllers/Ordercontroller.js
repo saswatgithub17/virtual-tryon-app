@@ -17,6 +17,7 @@ const createOrder = (req, res) => {
     // Support multiple field naming conventions from frontend
     const {
         customer_name,
+        customerName,
         customerEmail,
         customer_email,
         customer_phone,
@@ -29,7 +30,8 @@ const createOrder = (req, res) => {
     } = req.body;
 
     // Normalize field names
-    const name = customer_name || customerEmail || req.body.name || 'Customer';
+    // Important: use customerName for "name". Using customerEmail here causes PDFs to show email under "Name".
+    const name = customer_name || customerName || req.body.name || 'Customer';
     const email = customer_email || customerEmail || req.body.email;
     const phone = customer_phone || customerPhone || req.body.phone;
     
