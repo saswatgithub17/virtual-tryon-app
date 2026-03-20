@@ -53,12 +53,12 @@ class Constants {
   // Category Names
   static const String allCategories = 'All';
   static const String eveningWear = 'Evening Wear';
-  static const String casualWear = 'Casual';
-  static const String partyWear = 'Party';
-  static const String beachWear = 'Beach';
-  static const String summerWear = 'Summer';
-  static const String winterWear = 'Winter';
-  static const String formalWear = 'Formal';
+  static const String casualWear = 'Casual Wear';
+  static const String partyWear = 'Party Wear';
+  static const String beachWear = 'Beach Wear';
+  static const String summerWear = 'Summer Wear';
+  static const String winterWear = 'Winter Wear';
+  static const String formalWear = 'Formal Wear';
 
   // Size Labels
   static const String sizeXS = 'XS';

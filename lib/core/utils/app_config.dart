@@ -24,14 +24,12 @@ class AppConfig {
   // Categories
   static const List<String> categories = [
     'All',
+    'Casual Wear',
+    'Cocktail Wear',
     'Evening Wear',
-    'Casual',
-    'Party',
-    'Beach',
-    'Summer',
-    'Winter',
-    'Formal',
-    'Cocktail',
+    'Formal Wear',
+    'Party Wear',
+    'Winter Wear',
   ];
 
   // Sizes
