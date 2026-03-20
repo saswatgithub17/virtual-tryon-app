@@ -22,35 +22,323 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
   int _quantity = 1;
   bool _descExpanded = false;
 
+  // ─── Standard size measurements for dresses (inches) ─────────────────────
+  // Only rows whose size exists in widget.dress.sizes will be shown.
+  static const Map<String, Map<String, String>> _sizeChart = {
+    'XS': {'Bust': '32', 'Waist': '26', 'Hip': '35', 'Length': '36'},
+    'S':  {'Bust': '34', 'Waist': '28', 'Hip': '37', 'Length': '37'},
+    'M':  {'Bust': '36', 'Waist': '30', 'Hip': '39', 'Length': '38'},
+    'L':  {'Bust': '38', 'Waist': '32', 'Hip': '41', 'Length': '39'},
+    'XL': {'Bust': '40', 'Waist': '34', 'Hip': '43', 'Length': '40'},
+    'XXL':{'Bust': '42', 'Waist': '36', 'Hip': '45', 'Length': '41'},
+  };
+
   // ─── Sizes ────────────────────────────────────────────────────────────────
 
   List<DressSize> get _sizes {
     final raw = widget.dress.sizes;
     if (raw.isEmpty) {
       return [
-        DressSize(sizeName: 'S', stockQuantity: 10),
-        DressSize(sizeName: 'M', stockQuantity: 15),
-        DressSize(sizeName: 'L', stockQuantity: 12),
+        DressSize(sizeName: 'S',  stockQuantity: 10),
+        DressSize(sizeName: 'M',  stockQuantity: 15),
+        DressSize(sizeName: 'L',  stockQuantity: 12),
         DressSize(sizeName: 'XL', stockQuantity: 8),
       ];
     }
     return raw;
   }
 
-  DressSize get _sel => _sizes[_selectedSizeIndex];
-  int get _stock => _sel.stockQuantity;
-  bool get _isLow => _stock > 0 && _stock < 3;
-  bool get _isOOS => _stock == 0;
+  DressSize get _sel   => _sizes[_selectedSizeIndex];
+  int  get _stock      => _sel.stockQuantity;
+  bool get _isLow      => _stock > 0 && _stock < 3;
+  bool get _isOOS      => _stock == 0;
 
   bool _inCart(List items) => items.any((i) =>
       i.dress.dressId == widget.dress.dressId &&
-      i.selectedSize == _sel.sizeName);
+      i.selectedSize  == _sel.sizeName);
 
   @override
   void initState() {
     super.initState();
     final idx = _sizes.indexWhere((s) => s.stockQuantity > 0);
     if (idx >= 0) _selectedSizeIndex = idx;
+  }
+
+  // ─── Size Chart bottom sheet ───────────────────────────────────────────────
+
+  void _showSizeChart() {
+    // Only include sizes that are actually in this dress's size list
+    final availableSizeNames = _sizes.map((s) => s.sizeName).toSet();
+    final chartRows = _sizeChart.entries
+        .where((e) => availableSizeNames.contains(e.key))
+        .toList();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.4,
+        maxChildSize: 0.92,
+        expand: false,
+        builder: (_, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              // ── Handle ─────────────────────────────────────────────────────
+              const SizedBox(height: 12),
+              Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 4),
+
+              // ── Header row ─────────────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.straighten,
+                        color: AppTheme.primaryColor, size: 20),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Size Chart',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A2E),
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close,
+                            size: 18, color: Colors.grey),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── Dress name ─────────────────────────────────────────────────
+              Container(
+                width: double.infinity,
+                color: const Color(0xFFF8F0FF),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 10),
+                child: Text(
+                  widget.dress.name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF4A148C),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+
+              // ── Table ──────────────────────────────────────────────────────
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: Column(
+                      children: [
+                        _buildTable(chartRows),
+                        const SizedBox(height: 20),
+                        _buildMeasurementGuidelines(),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTable(List<MapEntry<String, Map<String, String>>> rows) {
+    const headers = ['Size', 'Bust', 'Waist', 'Hip', 'Length'];
+    const cols = ['Bust', 'Waist', 'Hip', 'Length'];
+
+    return Table(
+      border: TableBorder.all(color: const Color(0xFFEEEEEE), width: 1),
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      columnWidths: const {
+        0: FlexColumnWidth(1.2),
+        1: FlexColumnWidth(1.2),
+        2: FlexColumnWidth(1.2),
+        3: FlexColumnWidth(1.0),
+        4: FlexColumnWidth(1.2),
+      },
+      children: [
+        // ── Header row ───────────────────────────────────────────────────────
+        TableRow(
+          decoration: const BoxDecoration(
+            color: Color(0xFF6C3DEB),
+          ),
+          children: headers.map((h) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+            child: Text(
+              h,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          )).toList(),
+        ),
+        // ── Data rows — only sizes from the database ─────────────────────────
+        ...rows.asMap().entries.map((entry) {
+          final i      = entry.key;
+          final e      = entry.value;
+          final isEven = i % 2 == 0;
+          // Highlight the currently selected size
+          final isSelected = e.key == _sel.sizeName;
+
+          return TableRow(
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? const Color(0xFFEDE7FF)
+                  : isEven
+                      ? Colors.white
+                      : const Color(0xFFFAFAFA),
+            ),
+            children: [
+              // Size name cell
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    vertical: 12, horizontal: 6),
+                child: Text(
+                  e.key,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: isSelected
+                        ? AppTheme.primaryColor
+                        : const Color(0xFF1A1A2E),
+                  ),
+                ),
+              ),
+              // Measurement cells
+              ...cols.map((col) => Padding(
+                padding: const EdgeInsets.symmetric(
+                    vertical: 12, horizontal: 6),
+                child: Text(
+                  e.value[col] ?? '-',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isSelected
+                        ? AppTheme.primaryColor
+                        : const Color(0xFF444444),
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+                  ),
+                ),
+              )),
+            ],
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildMeasurementGuidelines() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Measurement Guidelines',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1A1A2E),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _guide('👗', 'Bust',
+              'Measure around the fullest part of your chest.'),
+          _guide('📏', 'Waist',
+              'Measure around the narrowest part of your waist.'),
+          _guide('📐', 'Hip',
+              'Measure around the fullest part of your hips.'),
+          _guide('📍', 'Length',
+              'Measured from shoulder to hemline.'),
+          const SizedBox(height: 8),
+          const Text(
+            '* All measurements are in inches.',
+            style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey,
+                fontStyle: FontStyle.italic),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _guide(String emoji, String label, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 14)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$label: ',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A2E),
+                    ),
+                  ),
+                  TextSpan(
+                    text: text,
+                    style: const TextStyle(
+                        fontSize: 12, color: Color(0xFF666666)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   // ─── Build ────────────────────────────────────────────────────────────────
@@ -61,9 +349,6 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
     final inCart = _inCart(cartItems);
 
     return Scaffold(
-      // ── FIX: No bottomNavigationBar — the button lives INSIDE the
-      // SingleChildScrollView so it is ALWAYS visible and can NEVER
-      // expand to fill the screen (which caused the blank white screen bug).
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: AppTheme.primaryColor,
@@ -85,30 +370,17 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── 1. Image ────────────────────────────────────────────────────
             _image(),
-
-            // ── 2. Price + Rating ────────────────────────────────────────────
             _priceRow(),
             const Divider(height: 1, color: Color(0xFFEEEEEE)),
-
-            // ── 3. Info chips ────────────────────────────────────────────────
             _infoChips(),
             const Divider(height: 1, color: Color(0xFFEEEEEE)),
-
-            // ── 4. Size selector ────────────────────────────────────────────
             _sizeSection(),
-
-            // ── 5. Low stock warning ─────────────────────────────────────────
             if (_isLow) _lowStockBanner(),
             if (_isOOS) _oosBanner(),
             const Divider(height: 1, color: Color(0xFFEEEEEE)),
-
-            // ── 6. Description ───────────────────────────────────────────────
             _description(),
             const SizedBox(height: 24),
-
-            // ── 7. Quantity + CTA — INSIDE scroll, always visible ────────────
             _cartSection(inCart),
             const SizedBox(height: 32),
           ],
@@ -155,7 +427,7 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
               children: [
                 Text(
                   '₹${widget.dress.price.toStringAsFixed(0)}',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.primaryColor,
@@ -170,7 +442,8 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
           ),
           if ((widget.dress.averageRating ?? 0) > 0)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: const Color(0xFFFFA000),
                 borderRadius: BorderRadius.circular(10),
@@ -235,7 +508,7 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
     );
   }
 
-  // ─── 4. Size selector ─────────────────────────────────────────────────────
+  // ─── 4. Size selector + Size Chart link ───────────────────────────────────
 
   Widget _sizeSection() {
     return Padding(
@@ -243,19 +516,59 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Select Size',
-            style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1A1A2E)),
+          // ── Header row: "Select Size"  +  "Size Chart ›" ──────────────────
+          Row(
+            children: [
+              const Text(
+                'Select Size',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A2E)),
+              ),
+              const Spacer(),
+              // Size Chart button
+              GestureDetector(
+                onTap: _showSizeChart,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF3F0FF),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                        color: AppTheme.primaryColor.withOpacity(0.4)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.straighten,
+                          size: 14, color: AppTheme.primaryColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Size Chart',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                      Icon(Icons.chevron_right,
+                          size: 14, color: AppTheme.primaryColor),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
+
+          // ── Size chips ────────────────────────────────────────────────────
           Wrap(
             spacing: 10,
             runSpacing: 10,
             children: List.generate(_sizes.length, (i) {
-              final s = _sizes[i];
+              final s   = _sizes[i];
               final sel = _selectedSizeIndex == i;
               final oos = s.stockQuantity == 0;
               final low = s.stockQuantity > 0 && s.stockQuantity < 3;
@@ -381,8 +694,8 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
           Icon(Icons.info_outline, color: Colors.grey, size: 18),
           SizedBox(width: 8),
           Text('Out of stock in this size. Pick another.',
-              style:
-                  TextStyle(color: Colors.grey, fontWeight: FontWeight.w500)),
+              style: TextStyle(
+                  color: Colors.grey, fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -409,9 +722,7 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
           const SizedBox(height: 8),
           Text(text,
               style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF5A5A72),
-                  height: 1.6)),
+                  fontSize: 14, color: Color(0xFF5A5A72), height: 1.6)),
           if (isLong)
             GestureDetector(
               onTap: () =>
@@ -432,9 +743,7 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
     );
   }
 
-  // ─── 7. Quantity + Cart button — inside scroll, no bottomNavigationBar ─────
-  // This is the KEY FIX. By putting the cart button here instead of in
-  // bottomNavigationBar, it can never expand to fill the screen.
+  // ─── 7. Cart section ──────────────────────────────────────────────────────
 
   Widget _cartSection(bool inCart) {
     return Container(
@@ -455,7 +764,6 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Quantity row — only shown before adding to cart
           if (!_isOOS && !inCart) ...[
             Row(
               children: [
@@ -465,7 +773,6 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF1A1A2E))),
                 const Spacer(),
-                // − stepper
                 _qtyBtn(Icons.remove_circle_outline, () {
                   if (_quantity > 1) setState(() => _quantity--);
                 }),
@@ -477,7 +784,6 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                         fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
-                // + stepper
                 _qtyBtn(Icons.add_circle_outline, () {
                   if (_quantity < _stock) setState(() => _quantity++);
                 }),
@@ -485,7 +791,6 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
             ),
             const SizedBox(height: 12),
           ],
-          // CTA button — full width
           SizedBox(
             width: double.infinity,
             height: 52,
