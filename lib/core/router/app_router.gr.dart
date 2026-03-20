@@ -49,6 +49,14 @@ class CameraRoute extends PageRouteInfo<CameraRouteArgs> {
   );
 }
 
+/// generated route for [OnboardingPage]  ← NEW
+class OnboardingRoute extends PageRouteInfo<void> {
+  const OnboardingRoute({List<PageRouteInfo>? children})
+      : super(OnboardingRoute.name, initialChildren: children);
+  static const String name = 'OnboardingRoute';
+  static PageInfo page = PageInfo(name, builder: (data) => const OnboardingPage());
+}
+
 class CameraRouteArgs {
   const CameraRouteArgs({this.key, this.dress});
 

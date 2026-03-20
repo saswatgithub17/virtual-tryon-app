@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:auto_route/auto_route.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:virtual_tryon_app/core/router/app_router.dart';
 
 /// AuraTry Splash Screen
-/// Shows app branding and navigates to home screen after 5 seconds
+/// First launch  → Onboarding (2-page walkthrough + demo video)
+/// Return launch → CatalogPage directly
 @RoutePage()
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -14,8 +16,7 @@ class SplashPage extends StatefulWidget {
   State<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashPageState extends State<SplashPage>
-    with TickerProviderStateMixin {
+class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   late AnimationController _animationController;
   late AnimationController _pulseController;
   late AnimationController _shimmerController;
@@ -31,7 +32,6 @@ class _SplashPageState extends State<SplashPage>
   void initState() {
     super.initState();
 
-    // Initialize particles
     for (int i = 0; i < 30; i++) {
       _particles.add(Particle(
         x: _random.nextDouble(),
@@ -42,61 +42,56 @@ class _SplashPageState extends State<SplashPage>
       ));
     }
 
-    // Main animation controller
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
 
-    // Pulse animation for logo
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     )..repeat(reverse: true);
 
-    // Shimmer animation for text
     _shimmerController = AnimationController(
       duration: const Duration(milliseconds: 2000),
       vsync: this,
     )..repeat();
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeIn,
-      ),
+      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
 
     _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeOutBack,
-      ),
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutBack),
     );
 
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
-      CurvedAnimation(
-        parent: _pulseController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
     _shimmerAnimation = Tween<double>(begin: -1.0, end: 2.0).animate(
-      CurvedAnimation(
-        parent: _shimmerController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _shimmerController, curve: Curves.easeInOut),
     );
 
-    // Start animation
     _animationController.forward();
 
-    // Navigate to home screen after 5 seconds
-    Timer(const Duration(seconds: 5), () {
-      if (mounted) {
-        context.router.replace(const CatalogRoute());
-      }
-    });
+    // After 5 seconds, decide where to navigate
+    Timer(const Duration(seconds: 5), _navigate);
+  }
+
+  Future<void> _navigate() async {
+    if (!mounted) return;
+    final prefs = await SharedPreferences.getInstance();
+    final seen  = prefs.getBool('onboarding_seen') ?? false;
+
+    if (!mounted) return;
+    if (seen) {
+      // Returning user → go straight to the catalog
+      context.router.replace(const CatalogRoute());
+    } else {
+      // First-time user → show onboarding
+      context.router.replace(const OnboardingRoute());
+    }
   }
 
   @override
@@ -130,12 +125,17 @@ class _SplashPageState extends State<SplashPage>
                 animation: _animationController,
                 builder: (context, child) {
                   return Positioned(
-                    left: _particles[index].x * MediaQuery.of(context).size.width,
-                    top: (_particles[index].y + 
-                        (DateTime.now().millisecondsSinceEpoch / 1000 * _particles[index].speed)) % 1 * 
+                    left: _particles[index].x *
+                        MediaQuery.of(context).size.width,
+                    top: (_particles[index].y +
+                                (DateTime.now().millisecondsSinceEpoch /
+                                    1000 *
+                                    _particles[index].speed)) %
+                            1 *
                         MediaQuery.of(context).size.height,
                     child: Opacity(
-                      opacity: _particles[index].opacity * _fadeAnimation.value,
+                      opacity:
+                          _particles[index].opacity * _fadeAnimation.value,
                       child: Container(
                         width: _particles[index].size,
                         height: _particles[index].size,
@@ -149,6 +149,7 @@ class _SplashPageState extends State<SplashPage>
                 },
               );
             }),
+
             // Main content
             Center(
               child: FadeTransition(
@@ -158,7 +159,6 @@ class _SplashPageState extends State<SplashPage>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Pulsing Logo Container
                       ScaleTransition(
                         scale: _pulseAnimation,
                         child: Container(
@@ -188,8 +188,6 @@ class _SplashPageState extends State<SplashPage>
                         ),
                       ),
                       const SizedBox(height: 40),
-                      
-                      // Glowing App Name with shimmer effect
                       ShaderMask(
                         shaderCallback: (bounds) {
                           return LinearGradient(
@@ -225,8 +223,6 @@ class _SplashPageState extends State<SplashPage>
                         ),
                       ),
                       const SizedBox(height: 16),
-
-                      // Animated Tagline
                       TweenAnimationBuilder<double>(
                         tween: Tween(begin: 0.0, end: 1.0),
                         duration: const Duration(milliseconds: 1000),
@@ -250,22 +246,18 @@ class _SplashPageState extends State<SplashPage>
                         ),
                       ),
                       const SizedBox(height: 60),
-
-                      // Animated Loading Indicator
                       TweenAnimationBuilder<double>(
                         tween: Tween(begin: 0.0, end: 1.0),
                         duration: const Duration(milliseconds: 800),
                         builder: (context, value, child) {
-                          return Opacity(
-                            opacity: value,
-                            child: child,
-                          );
+                          return Opacity(opacity: value, child: child);
                         },
                         child: SizedBox(
                           width: 50,
                           height: 50,
                           child: CircularProgressIndicator(
-                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                                Colors.white),
                             strokeWidth: 3,
                             backgroundColor: Colors.white.withOpacity(0.2),
                           ),
@@ -284,12 +276,7 @@ class _SplashPageState extends State<SplashPage>
 }
 
 class Particle {
-  double x;
-  double y;
-  double size;
-  double speed;
-  double opacity;
-
+  double x, y, size, speed, opacity;
   Particle({
     required this.x,
     required this.y,

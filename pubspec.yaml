@@ -38,7 +38,7 @@ dependencies:
   syncfusion_flutter_pdfviewer: ^27.2.5
   url_launcher: ^6.3.2
   uuid: ^4.3.3
-  # New packages added
+  video_player: ^2.9.2        # ← NEW: offline demo video playback
   lottie: ^3.1.0
   sqflite: ^2.3.2
   path_provider: ^2.1.2
@@ -58,3 +58,4 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    - lib/assets/videos/
