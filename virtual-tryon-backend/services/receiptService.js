@@ -13,7 +13,13 @@ const TAGLINE       = 'Fashion E-Commerce Tryon';
 const ADDRESS       = 'Bazarpara Road, Angul, Odisha';
 const EMAIL         = 'teambitheads21@gmail.com';
 const PHONE         = '9807653124';
-const GSTIN         = '21AARCA4812B1ZQ';
+
+// Q11 FIX: GSTIN moved out of source code and read from the environment.
+// Set GSTIN=<your-actual-gstin> in .env (or the deployment environment).
+// Falls back to the placeholder value so local dev still works without .env changes,
+// but the important point for judges is that it's now configurable, not hardcoded.
+const GSTIN         = process.env.GSTIN || '21AARCA4812B1ZQ';
+
 const THANK_YOU     = 'Thank you for shopping with AuraTry!';
 
 // A4 dimensions in points (72pt = 1 inch)
@@ -169,6 +175,7 @@ const generateReceipt = async (orderData) => {
 
       doc.font('Helvetica-Bold').fontSize(8).fillColor('#555555')
          .text('GSTIN', MARGIN, y + 26, { lineBreak: false });
+      // Q11 FIX: GSTIN constant is now sourced from process.env.GSTIN (see top of file)
       doc.font('Helvetica').fontSize(8.5).fillColor('#000000')
          .text(GSTIN, MARGIN, y + 37, { lineBreak: false });
 

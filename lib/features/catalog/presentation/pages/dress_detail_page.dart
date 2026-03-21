@@ -27,12 +27,12 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
   // ─── Standard size measurements for dresses (inches) ─────────────────────
   // Only rows whose size exists in widget.dress.sizes will be shown.
   static const Map<String, Map<String, String>> _sizeChart = {
-    'XS': {'Bust': '32', 'Waist': '26', 'Hip': '35', 'Length': '36'},
-    'S':  {'Bust': '34', 'Waist': '28', 'Hip': '37', 'Length': '37'},
-    'M':  {'Bust': '36', 'Waist': '30', 'Hip': '39', 'Length': '38'},
-    'L':  {'Bust': '38', 'Waist': '32', 'Hip': '41', 'Length': '39'},
-    'XL': {'Bust': '40', 'Waist': '34', 'Hip': '43', 'Length': '40'},
-    'XXL':{'Bust': '42', 'Waist': '36', 'Hip': '45', 'Length': '41'},
+    'XS':  {'Bust': '32', 'Waist': '26', 'Hip': '35', 'Length': '36'},
+    'S':   {'Bust': '34', 'Waist': '28', 'Hip': '37', 'Length': '37'},
+    'M':   {'Bust': '36', 'Waist': '30', 'Hip': '39', 'Length': '38'},
+    'L':   {'Bust': '38', 'Waist': '32', 'Hip': '41', 'Length': '39'},
+    'XL':  {'Bust': '40', 'Waist': '34', 'Hip': '43', 'Length': '40'},
+    'XXL': {'Bust': '42', 'Waist': '36', 'Hip': '45', 'Length': '41'},
   };
 
   // ─── Sizes ────────────────────────────────────────────────────────────────
@@ -91,10 +91,20 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
     if (idx >= 0) _selectedSizeIndex = idx;
   }
 
+  // ─── Q4 FIX: measurement formatter ───────────────────────────────────────
+  // Converts an inch string value to cm when [isCm] is true.
+  // Returns the formatted string with unit appended.
+  String _formatMeasurement(String value, bool isCm) {
+    final inches = double.tryParse(value);
+    if (inches == null) return value;
+    if (!isCm) return '$value"';
+    // 1 inch = 2.54 cm, rounded to 1 decimal place
+    return '${(inches * 2.54).toStringAsFixed(1)}';
+  }
+
   // ─── Size Chart bottom sheet ───────────────────────────────────────────────
 
   void _showSizeChart() {
-    // Only include sizes that are actually in this dress's size list
     final availableSizeNames = _sizes.map((s) => s.sizeName).toSet();
     final chartRows = _sizeChart.entries
         .where((e) => availableSizeNames.contains(e.key))
@@ -104,143 +114,216 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.75,
-        minChildSize: 0.4,
-        maxChildSize: 0.92,
-        expand: false,
-        builder: (_, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            children: [
-              // ── Handle ─────────────────────────────────────────────────────
-              const SizedBox(height: 12),
-              Container(
-                width: 40, height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 4),
+      // Q4 FIX: [isCm] lives here so it's local to the sheet's lifetime.
+      // StatefulBuilder provides [setSheetState] to rebuild only the sheet
+      // without touching the parent widget tree.
+      builder: (_) {
+        bool isCm = false; // starts in inches (default Indian retail standard)
 
-              // ── Header row ─────────────────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 12),
-                child: Row(
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return DraggableScrollableSheet(
+              initialChildSize: 0.75,
+              minChildSize: 0.4,
+              maxChildSize: 0.92,
+              expand: false,
+              builder: (_, scrollController) => Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Column(
                   children: [
-                    const Icon(Icons.straighten,
-                        color: AppTheme.primaryColor, size: 20),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Size Chart',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1A2E),
+                    // ── Handle ──────────────────────────────────────────────
+                    const SizedBox(height: 12),
+                    Container(
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                    const Spacer(),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          shape: BoxShape.circle,
+                    const SizedBox(height: 4),
+
+                    // ── Header row ──────────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.straighten,
+                              color: AppTheme.primaryColor, size: 20),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Size Chart',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1A1A2E),
+                            ),
+                          ),
+                          const Spacer(),
+
+                          // ── Q4 FIX: IN / CM toggle ──────────────────────
+                          // Tapping switches the unit for all values in the table.
+                          // StatefulBuilder rebuilds only the sheet — parent is untouched.
+                          Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF3F0FF),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                  color: AppTheme.primaryColor.withOpacity(0.4)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _unitToggleButton(
+                                  label: 'IN',
+                                  selected: !isCm,
+                                  onTap: () =>
+                                      setSheetState(() => isCm = false),
+                                ),
+                                _unitToggleButton(
+                                  label: 'CM',
+                                  selected: isCm,
+                                  onTap: () =>
+                                      setSheetState(() => isCm = true),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // ── End toggle ───────────────────────────────────
+
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () => Navigator.pop(context),
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.close,
+                                  size: 18, color: Colors.grey),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // ── Dress name ──────────────────────────────────────────
+                    Container(
+                      width: double.infinity,
+                      color: const Color(0xFFF8F0FF),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 10),
+                      child: Text(
+                        widget.dress.name,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF4A148C),
                         ),
-                        child: const Icon(Icons.close,
-                            size: 18, color: Colors.grey),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+
+                    // ── Table ───────────────────────────────────────────────
+                    Expanded(
+                      child: SingleChildScrollView(
+                        controller: scrollController,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                          child: Column(
+                            children: [
+                              _buildTable(chartRows, isCm: isCm),
+                              const SizedBox(height: 20),
+                              _buildMeasurementGuidelines(isCm: isCm),
+                              const SizedBox(height: 24),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
+            );
+          },
+        );
+      },
+    );
+  }
 
-              // ── Dress name ─────────────────────────────────────────────────
-              Container(
-                width: double.infinity,
-                color: const Color(0xFFF8F0FF),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 10),
-                child: Text(
-                  widget.dress.name,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF4A148C),
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-
-              // ── Table ──────────────────────────────────────────────────────
-              Expanded(
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                    child: Column(
-                      children: [
-                        _buildTable(chartRows),
-                        const SizedBox(height: 20),
-                        _buildMeasurementGuidelines(),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
+  // ── Q4 FIX: individual pill button for the IN/CM toggle ──────────────────
+  Widget _unitToggleButton({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? AppTheme.primaryColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: selected ? Colors.white : AppTheme.primaryColor,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildTable(List<MapEntry<String, Map<String, String>>> rows) {
-    const headers = ['Size', 'Bust', 'Waist', 'Hip', 'Length'];
+  // Q4 FIX: [isCm] controls whether measurements are shown in inches or cm.
+  Widget _buildTable(
+    List<MapEntry<String, Map<String, String>>> rows, {
+    bool isCm = false,
+  }) {
+    // Column headers — unit suffix changes with the toggle
+    final unitSuffix = isCm ? ' (cm)' : ' (in)';
+    final headers = ['Size', 'Bust$unitSuffix', 'Waist$unitSuffix', 'Hip$unitSuffix', 'Length$unitSuffix'];
     const cols = ['Bust', 'Waist', 'Hip', 'Length'];
 
     return Table(
       border: TableBorder.all(color: const Color(0xFFEEEEEE), width: 1),
       defaultVerticalAlignment: TableCellVerticalAlignment.middle,
       columnWidths: const {
-        0: FlexColumnWidth(1.2),
+        0: FlexColumnWidth(1.0),
         1: FlexColumnWidth(1.2),
         2: FlexColumnWidth(1.2),
         3: FlexColumnWidth(1.0),
         4: FlexColumnWidth(1.2),
       },
       children: [
-        // ── Header row ───────────────────────────────────────────────────────
+        // ── Header row ────────────────────────────────────────────────────
         TableRow(
-          decoration: const BoxDecoration(
-            color: Color(0xFF6C3DEB),
-          ),
+          decoration: const BoxDecoration(color: Color(0xFF6C3DEB)),
           children: headers.map((h) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
             child: Text(
               h,
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
-                fontSize: 12,
+                fontSize: 11,
               ),
             ),
           )).toList(),
         ),
-        // ── Data rows — only sizes from the database ─────────────────────────
+        // ── Data rows ─────────────────────────────────────────────────────
         ...rows.asMap().entries.map((entry) {
-          final i      = entry.key;
-          final e      = entry.value;
-          final isEven = i % 2 == 0;
-          // Highlight the currently selected size
+          final i         = entry.key;
+          final e         = entry.value;
+          final isEven    = i % 2 == 0;
           final isSelected = e.key == _sel.sizeName;
 
           return TableRow(
@@ -254,8 +337,7 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
             children: [
               // Size name cell
               Padding(
-                padding: const EdgeInsets.symmetric(
-                    vertical: 12, horizontal: 6),
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
                 child: Text(
                   e.key,
                   textAlign: TextAlign.center,
@@ -268,21 +350,19 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                   ),
                 ),
               ),
-              // Measurement cells
+              // Measurement cells — Q4 FIX: values converted via _formatMeasurement
               ...cols.map((col) => Padding(
-                padding: const EdgeInsets.symmetric(
-                    vertical: 12, horizontal: 6),
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
                 child: Text(
-                  e.value[col] ?? '-',
+                  _formatMeasurement(e.value[col] ?? '-', isCm),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 13,
                     color: isSelected
                         ? AppTheme.primaryColor
                         : const Color(0xFF444444),
-                    fontWeight: isSelected
-                        ? FontWeight.w600
-                        : FontWeight.normal,
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.normal,
                   ),
                 ),
               )),
@@ -293,7 +373,8 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
     );
   }
 
-  Widget _buildMeasurementGuidelines() {
+  // Q4 FIX: [isCm] updates the measurement guidelines note at the bottom.
+  Widget _buildMeasurementGuidelines({bool isCm = false}) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -322,9 +403,12 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
           _guide('📍', 'Length',
               'Measured from shoulder to hemline.'),
           const SizedBox(height: 8),
-          const Text(
-            '* All measurements are in inches.',
-            style: TextStyle(
+          // Q4 FIX: unit label updates dynamically with the toggle
+          Text(
+            isCm
+                ? '* All measurements are in centimetres (cm).'
+                : '* All measurements are in inches (in). Tap CM to switch.',
+            style: const TextStyle(
                 fontSize: 11,
                 color: Colors.grey,
                 fontStyle: FontStyle.italic),

@@ -95,6 +95,10 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
       body: Column(
         children: [
           _buildSearchBar(),
+          // Q9 FIX: shows a slim 3px LinearProgressIndicator beneath the search bar
+          // while the catalog is in a loading state AND the user has typed a query.
+          // Zero height SizedBox when idle keeps layout stable — no content jumping.
+          _buildSearchLoadingIndicator(),
           _buildGenderFilter(),
           _buildCategoryChips(),
           Expanded(child: _buildDressGrid()),
@@ -157,6 +161,24 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
         },
       ),
     );
+  }
+
+  // Q9 FIX: slim progress bar below the search bar.
+  // Only visible when the user has typed something AND results are loading.
+  // Uses a SizedBox(height: 3) spacer when not loading so layout height is constant.
+  Widget _buildSearchLoadingIndicator() {
+    final isSearching = _searchController.text.isNotEmpty;
+    if (!isSearching) return const SizedBox.shrink();
+
+    final catalogAsync = ref.watch(catalogControllerProvider);
+    return catalogAsync.isLoading
+        ? LinearProgressIndicator(
+            minHeight: 3,
+            backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
+            valueColor:
+                AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+          )
+        : const SizedBox(height: 3); // keeps layout stable when results arrive
   }
 
   // ─── Gender Filter Row ─────────────────────────────────────────────────────

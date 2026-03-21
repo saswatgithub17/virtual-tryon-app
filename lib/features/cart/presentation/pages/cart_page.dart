@@ -44,7 +44,6 @@ class _CartPageState extends ConsumerState<CartPage>
     final cartItems = ref.watch(cartControllerProvider);
     final cartController = ref.read(cartControllerProvider.notifier);
 
-    // Fix 11: watch the provider so total updates reactively
     final totalAmount = ref.watch(cartControllerProvider.notifier
         .select((c) => c.totalAmount));
 
@@ -98,7 +97,6 @@ class _CartPageState extends ConsumerState<CartPage>
                               Helpers.showSuccess(
                                   context, 'Removed from cart');
                             },
-                            // Fix 4: use increaseItem / decreaseItem
                             onIncrease: () =>
                                 cartController.increaseItem(index),
                             onDecrease: () =>
@@ -112,9 +110,12 @@ class _CartPageState extends ConsumerState<CartPage>
                 ],
               ),
             ),
+      // Q10 FIX: bottomNavigationBar is null when cart is empty — button never renders.
+      // An additional guard inside _buildCheckoutButton ensures onPressed is null-safe
+      // even if this widget is ever reused in a context where isEmpty isn't checked first.
       bottomNavigationBar: cartItems.isEmpty
           ? null
-          : _buildCheckoutButton(totalAmount),
+          : _buildCheckoutButton(totalAmount, cartItems.isEmpty),
     );
   }
 
@@ -184,8 +185,9 @@ class _CartPageState extends ConsumerState<CartPage>
     );
   }
 
-  // Fix 11: receives totalAmount as parameter — already reactive from build()
-  Widget _buildCheckoutButton(double totalAmount) {
+  // Q10 FIX: [isCartEmpty] is passed explicitly so onPressed is definitively null
+  // when the cart is empty — prevents any edge case navigation to an empty checkout.
+  Widget _buildCheckoutButton(double totalAmount, bool isCartEmpty) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -199,7 +201,11 @@ class _CartPageState extends ConsumerState<CartPage>
       ),
       child: SafeArea(
         child: ElevatedButton(
-          onPressed: () => context.router.push(const CheckoutRoute()),
+          // Q10 FIX: null onPressed renders a visually disabled button and blocks
+          // navigation — one guard that covers both UI and accidental programmatic calls.
+          onPressed: isCartEmpty
+              ? null
+              : () => context.router.push(const CheckoutRoute()),
           style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
