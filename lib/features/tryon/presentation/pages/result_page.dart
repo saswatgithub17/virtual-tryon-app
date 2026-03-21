@@ -181,7 +181,23 @@ class _ResultPageState extends ConsumerState<ResultPage> {
                     itemCount: tryOnState.results.length,
                     itemBuilder: (context, index) {
                       final result = tryOnState.results[index];
-                      return _buildResultCard(result);
+
+                      // ── Q1 FIX: look up original dress image from selectedDresses ──
+                      // Match by dressId so the original catalogue photo can be shown
+                      // side-by-side with the AI try-on result.
+                      final Dress? originalDress = tryOnState.selectedDresses
+                          .cast<Dress?>()
+                          .firstWhere(
+                            (d) => d?.dressId == result.dressId,
+                            orElse: () => null,
+                          );
+                      final String? originalImageUrl =
+                          originalDress?.imageUrl;
+
+                      return _buildResultCard(
+                        result,
+                        originalImageUrl: originalImageUrl,
+                      );
                     },
                   ),
                 ),
@@ -192,7 +208,15 @@ class _ResultPageState extends ConsumerState<ResultPage> {
     );
   }
 
-  Widget _buildResultCard(TryOnResult result) {
+  // ─── Q1 FIX: [originalImageUrl] added ────────────────────────────────────
+  // When an original dress image URL is available the card shows a labelled
+  // side-by-side layout: "Original" on the left, "Try-On" on the right.
+  // When it is null the card falls back to the single full-width result image
+  // (same behaviour as before).
+  Widget _buildResultCard(
+    TryOnResult result, {
+    String? originalImageUrl,
+  }) {
     final imageUrl = result.displayUrl;
     final include = result.dressId != null &&
         _selectedForCart.contains(result.dressId);
@@ -201,30 +225,217 @@ class _ResultPageState extends ConsumerState<ResultPage> {
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
+          // ── Image area ────────────────────────────────────────────────────
           Expanded(
-            child: Hero(
-              tag: 'result_${result.dressIndex ?? result.dressId}',
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: imageUrl != null
-                    ? CachedNetworkImage(
-                        imageUrl: ApiConfig.getUploadUrl(imageUrl),
-                        fit: BoxFit.contain,
-                        placeholder: (context, url) => const Center(
-                            child: CircularProgressIndicator(
-                                color: Colors.white)),
-                        errorWidget: (context, url, error) => const Center(
-                          child: Icon(Icons.error,
-                              color: Colors.white, size: 48),
+            child: originalImageUrl != null
+                // ── Q1 FIX: side-by-side comparison ──────────────────────
+                ? Column(
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            // Left panel — original catalogue image
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          Colors.white.withOpacity(0.15),
+                                      borderRadius:
+                                          BorderRadius.circular(8),
+                                    ),
+                                    child: const Text(
+                                      'Original',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Expanded(
+                                    child: ClipRRect(
+                                      borderRadius:
+                                          BorderRadius.circular(14),
+                                      child: CachedNetworkImage(
+                                        imageUrl: ApiConfig.getUploadUrl(
+                                            originalImageUrl),
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                        placeholder: (_, __) =>
+                                            const Center(
+                                          child: CircularProgressIndicator(
+                                              color: Colors.white),
+                                        ),
+                                        errorWidget: (_, __, ___) =>
+                                            const Center(
+                                          child: Icon(
+                                              Icons.image_not_supported,
+                                              color: Colors.white54,
+                                              size: 32),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Divider
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    width: 1,
+                                    height: 60,
+                                    color: Colors.white24,
+                                  ),
+                                  const Padding(
+                                    padding:
+                                        EdgeInsets.symmetric(vertical: 6),
+                                    child: Icon(Icons.compare_arrows,
+                                        color: Colors.white54, size: 18),
+                                  ),
+                                  Container(
+                                    width: 1,
+                                    height: 60,
+                                    color: Colors.white24,
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Right panel — AI try-on result
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primaryColor
+                                          .withOpacity(0.8),
+                                      borderRadius:
+                                          BorderRadius.circular(8),
+                                    ),
+                                    child: const Text(
+                                      'Try-On',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Expanded(
+                                    child: ClipRRect(
+                                      borderRadius:
+                                          BorderRadius.circular(14),
+                                      child: imageUrl != null
+                                          ? CachedNetworkImage(
+                                              imageUrl:
+                                                  ApiConfig.getUploadUrl(
+                                                      imageUrl),
+                                              fit: BoxFit.cover,
+                                              width: double.infinity,
+                                              placeholder: (_, __) =>
+                                                  const Center(
+                                                child:
+                                                    CircularProgressIndicator(
+                                                        color:
+                                                            Colors.white),
+                                              ),
+                                              errorWidget: (_, __, ___) =>
+                                                  const Center(
+                                                child: Icon(
+                                                    Icons.error,
+                                                    color: Colors.white,
+                                                    size: 32),
+                                              ),
+                                            )
+                                          : const Center(
+                                              child: Icon(
+                                                  Icons
+                                                      .image_not_supported,
+                                                  color: Colors.white,
+                                                  size: 32),
+                                            ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                      )
-                    : const Center(
-                        child: Icon(Icons.image_not_supported,
-                            color: Colors.white, size: 48),
                       ),
-              ),
-            ),
+
+                      // ── Q1 FIX: pattern accuracy disclaimer badge ────────
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: Colors.amber.withOpacity(0.5)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.info_outline,
+                                color: Colors.amber, size: 13),
+                            SizedBox(width: 6),
+                            Text(
+                              'Pattern accuracy may vary',
+                              style: TextStyle(
+                                color: Colors.amber,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                // ── Fallback: single result image (original behaviour) ────
+                : Hero(
+                    tag: 'result_${result.dressIndex ?? result.dressId}',
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: imageUrl != null
+                          ? CachedNetworkImage(
+                              imageUrl: ApiConfig.getUploadUrl(imageUrl),
+                              fit: BoxFit.contain,
+                              placeholder: (context, url) => const Center(
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white)),
+                              errorWidget: (context, url, error) =>
+                                  const Center(
+                                child: Icon(Icons.error,
+                                    color: Colors.white, size: 48),
+                              ),
+                            )
+                          : const Center(
+                              child: Icon(Icons.image_not_supported,
+                                  color: Colors.white, size: 48),
+                            ),
+                    ),
+                  ),
           ),
+
+          // ── Info card (unchanged) ─────────────────────────────────────────
           const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.all(20),

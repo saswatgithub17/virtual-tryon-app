@@ -25,7 +25,6 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
   bool _descExpanded = false;
 
   // ─── Standard size measurements for dresses (inches) ─────────────────────
-  // Only rows whose size exists in widget.dress.sizes will be shown.
   static const Map<String, Map<String, String>> _sizeChart = {
     'XS':  {'Bust': '32', 'Waist': '26', 'Hip': '35', 'Length': '36'},
     'S':   {'Bust': '34', 'Waist': '28', 'Hip': '37', 'Length': '37'},
@@ -34,8 +33,6 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
     'XL':  {'Bust': '40', 'Waist': '34', 'Hip': '43', 'Length': '40'},
     'XXL': {'Bust': '42', 'Waist': '36', 'Hip': '45', 'Length': '41'},
   };
-
-  // ─── Sizes ────────────────────────────────────────────────────────────────
 
   List<DressSize> get _sizes {
     final raw = widget.dress.sizes;
@@ -92,13 +89,10 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
   }
 
   // ─── Q4 FIX: measurement formatter ───────────────────────────────────────
-  // Converts an inch string value to cm when [isCm] is true.
-  // Returns the formatted string with unit appended.
   String _formatMeasurement(String value, bool isCm) {
     final inches = double.tryParse(value);
     if (inches == null) return value;
     if (!isCm) return '$value"';
-    // 1 inch = 2.54 cm, rounded to 1 decimal place
     return '${(inches * 2.54).toStringAsFixed(1)}';
   }
 
@@ -114,11 +108,8 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      // Q4 FIX: [isCm] lives here so it's local to the sheet's lifetime.
-      // StatefulBuilder provides [setSheetState] to rebuild only the sheet
-      // without touching the parent widget tree.
       builder: (_) {
-        bool isCm = false; // starts in inches (default Indian retail standard)
+        bool isCm = false;
 
         return StatefulBuilder(
           builder: (context, setSheetState) {
@@ -134,7 +125,6 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                 ),
                 child: Column(
                   children: [
-                    // ── Handle ──────────────────────────────────────────────
                     const SizedBox(height: 12),
                     Container(
                       width: 40, height: 4,
@@ -144,8 +134,6 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                       ),
                     ),
                     const SizedBox(height: 4),
-
-                    // ── Header row ──────────────────────────────────────────
                     Padding(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 12),
@@ -163,10 +151,6 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                             ),
                           ),
                           const Spacer(),
-
-                          // ── Q4 FIX: IN / CM toggle ──────────────────────
-                          // Tapping switches the unit for all values in the table.
-                          // StatefulBuilder rebuilds only the sheet — parent is untouched.
                           Container(
                             decoration: BoxDecoration(
                               color: const Color(0xFFF3F0FF),
@@ -192,8 +176,6 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                               ],
                             ),
                           ),
-                          // ── End toggle ───────────────────────────────────
-
                           const SizedBox(width: 8),
                           GestureDetector(
                             onTap: () => Navigator.pop(context),
@@ -210,8 +192,6 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                         ],
                       ),
                     ),
-
-                    // ── Dress name ──────────────────────────────────────────
                     Container(
                       width: double.infinity,
                       color: const Color(0xFFF8F0FF),
@@ -227,8 +207,6 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                         textAlign: TextAlign.center,
                       ),
                     ),
-
-                    // ── Table ───────────────────────────────────────────────
                     Expanded(
                       child: SingleChildScrollView(
                         controller: scrollController,
@@ -255,7 +233,6 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
     );
   }
 
-  // ── Q4 FIX: individual pill button for the IN/CM toggle ──────────────────
   Widget _unitToggleButton({
     required String label,
     required bool selected,
@@ -282,12 +259,10 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
     );
   }
 
-  // Q4 FIX: [isCm] controls whether measurements are shown in inches or cm.
   Widget _buildTable(
     List<MapEntry<String, Map<String, String>>> rows, {
     bool isCm = false,
   }) {
-    // Column headers — unit suffix changes with the toggle
     final unitSuffix = isCm ? ' (cm)' : ' (in)';
     final headers = ['Size', 'Bust$unitSuffix', 'Waist$unitSuffix', 'Hip$unitSuffix', 'Length$unitSuffix'];
     const cols = ['Bust', 'Waist', 'Hip', 'Length'];
@@ -303,7 +278,6 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
         4: FlexColumnWidth(1.2),
       },
       children: [
-        // ── Header row ────────────────────────────────────────────────────
         TableRow(
           decoration: const BoxDecoration(color: Color(0xFF6C3DEB)),
           children: headers.map((h) => Padding(
@@ -319,7 +293,6 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
             ),
           )).toList(),
         ),
-        // ── Data rows ─────────────────────────────────────────────────────
         ...rows.asMap().entries.map((entry) {
           final i         = entry.key;
           final e         = entry.value;
@@ -335,7 +308,6 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                       : const Color(0xFFFAFAFA),
             ),
             children: [
-              // Size name cell
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
                 child: Text(
@@ -350,7 +322,6 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                   ),
                 ),
               ),
-              // Measurement cells — Q4 FIX: values converted via _formatMeasurement
               ...cols.map((col) => Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
                 child: Text(
@@ -373,7 +344,6 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
     );
   }
 
-  // Q4 FIX: [isCm] updates the measurement guidelines note at the bottom.
   Widget _buildMeasurementGuidelines({bool isCm = false}) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -403,7 +373,6 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
           _guide('📍', 'Length',
               'Measured from shoulder to hemline.'),
           const SizedBox(height: 8),
-          // Q4 FIX: unit label updates dynamically with the toggle
           Text(
             isCm
                 ? '* All measurements are in centimetres (cm).'
@@ -451,6 +420,307 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
       ),
     );
   }
+
+  // ─── Q5 FIX: Custom size request bottom sheet ─────────────────────────────
+  // Opens a form with Bust / Waist / Hip TextFields.
+  // No backend needed for demo — pressing Submit shows a confirmation snackbar.
+  void _showCustomSizeSheet() {
+    final bustCtrl  = TextEditingController();
+    final waistCtrl = TextEditingController();
+    final hipCtrl   = TextEditingController();
+    final formKey   = GlobalKey<FormState>();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+              bottom: MediaQuery.of(sheetContext).viewInsets.bottom),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Handle
+                    Center(
+                      child: Container(
+                        width: 40, height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Header
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.tune,
+                              color: AppTheme.primaryColor, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Request Custom Size',
+                                style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                'Share your measurements — we\'ll contact you',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => Navigator.pop(sheetContext),
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.close,
+                                size: 18, color: Colors.grey),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+                    const Divider(height: 1),
+                    const SizedBox(height: 20),
+
+                    // Dress context chip
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF3F0FF),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: AppTheme.primaryColor.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.checkroom,
+                              color: AppTheme.primaryColor, size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              widget.dress.name,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF4A148C),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    const Text(
+                      'Your measurements (in inches)',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A1A2E)),
+                    ),
+                    const SizedBox(height: 12),
+
+                    _measurementField(
+                      controller: bustCtrl,
+                      label: 'Bust',
+                      hint: 'e.g. 38',
+                      icon: Icons.favorite_border,
+                    ),
+                    const SizedBox(height: 12),
+
+                    _measurementField(
+                      controller: waistCtrl,
+                      label: 'Waist',
+                      hint: 'e.g. 30',
+                      icon: Icons.straighten,
+                    ),
+                    const SizedBox(height: 12),
+
+                    _measurementField(
+                      controller: hipCtrl,
+                      label: 'Hip',
+                      hint: 'e.g. 40',
+                      icon: Icons.accessibility_new,
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Info note
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[50],
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.blue[100]!),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.info_outline,
+                              color: Colors.blue, size: 16),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Our team will reach out within 2 business days with availability and pricing.',
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.blue),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Submit button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          if (formKey.currentState?.validate() ?? false) {
+                            Navigator.pop(sheetContext);
+                            bustCtrl.dispose();
+                            waistCtrl.dispose();
+                            hipCtrl.dispose();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Row(
+                                  children: [
+                                    Icon(Icons.check_circle,
+                                        color: Colors.white, size: 18),
+                                    SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        'Request sent! We\'ll contact you soon.',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                backgroundColor: const Color(0xFF4CAF50),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10)),
+                                duration: const Duration(seconds: 3),
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.send_outlined, size: 18),
+                        label: const Text(
+                          'Submit Request',
+                          style: TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    ).whenComplete(() {
+      // Safety net — guard against double-dispose if user swiped sheet down
+      try { bustCtrl.dispose(); } catch (_) {}
+      try { waistCtrl.dispose(); } catch (_) {}
+      try { hipCtrl.dispose(); } catch (_) {}
+    });
+  }
+
+  // Helper: single measurement TextFormField for the custom size sheet
+  Widget _measurementField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(
+        labelText: '$label (inches)',
+        hintText: hint,
+        prefixIcon: Icon(icon, color: AppTheme.primaryColor, size: 20),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide:
+              const BorderSide(color: AppTheme.primaryColor, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.red),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        filled: true,
+        fillColor: Colors.grey[50],
+      ),
+      validator: (v) {
+        if (v == null || v.trim().isEmpty) {
+          return 'Please enter your $label measurement';
+        }
+        final n = double.tryParse(v.trim());
+        if (n == null || n <= 0) {
+          return 'Enter a valid number in inches';
+        }
+        return null;
+      },
+    );
+  }
+  // ─── End Q5 FIX ──────────────────────────────────────────────────────────
 
   // ─── Build ────────────────────────────────────────────────────────────────
 
@@ -627,7 +897,7 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header row: "Select Size"  +  "Size Chart ›" ──────────────────
+          // Header row
           Row(
             children: [
               const Text(
@@ -638,7 +908,6 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
                     color: Color(0xFF1A1A2E)),
               ),
               const Spacer(),
-              // Size Chart button
               GestureDetector(
                 onTap: _showSizeChart,
                 child: Container(
@@ -674,7 +943,7 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
           ),
           const SizedBox(height: 12),
 
-          // ── Size chips ────────────────────────────────────────────────────
+          // Size chips
           Wrap(
             spacing: 10,
             runSpacing: 10,
@@ -757,6 +1026,44 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
               );
             }),
           ),
+
+          // ── Q5 FIX: Request Custom Size button ────────────────────────────
+          const SizedBox(height: 14),
+          GestureDetector(
+            onTap: _showCustomSizeSheet,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: AppTheme.primaryColor.withOpacity(0.5),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.tune,
+                      size: 16, color: AppTheme.primaryColor),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Request Custom Size',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.chevron_right,
+                      size: 16, color: AppTheme.primaryColor),
+                ],
+              ),
+            ),
+          ),
+          // ── End Q5 FIX ───────────────────────────────────────────────────
         ],
       ),
     );

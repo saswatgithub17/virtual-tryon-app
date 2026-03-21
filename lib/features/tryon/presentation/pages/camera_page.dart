@@ -487,6 +487,41 @@ class _CameraPageState extends ConsumerState<CameraPage>
                     ),
                   ),
                 ),
+
+                // ── Q2 FIX: clothing tips strip ──────────────────────────
+                // Shown directly below the instruction pill so it's the
+                // first thing a user reads before capturing their photo.
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.55),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                        color: Colors.white.withOpacity(0.2), width: 1),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.checkroom_outlined,
+                          color: Colors.white70, size: 16),
+                      SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          'For best results, wear form-fitting or minimal clothing',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // ── End Q2 FIX ───────────────────────────────────────────
               ],
             ),
           ),
@@ -685,7 +720,12 @@ class _CameraPageState extends ConsumerState<CameraPage>
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _isProcessing ? null : _confirmPhoto,
+                    // ── Q2 FIX: replaced direct _confirmPhoto call with
+                    // pre-checklist dialog. The dialog educates the user
+                    // about clothing interference before the AI processes.
+                    onPressed: _isProcessing
+                        ? null
+                        : _showPreChecklistDialog,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -712,6 +752,164 @@ class _CameraPageState extends ConsumerState<CameraPage>
       ],
     );
   }
+
+  // ─── Q2 FIX: Pre-processing checklist dialog ──────────────────────────────
+  // Shown when the user taps "Use This Photo". Displays 4 quick checks for
+  // clothing interference. If the user confirms, the real _confirmPhoto logic
+  // runs. If they cancel, they can retake the photo.
+  Future<void> _showPreChecklistDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Dialog title
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.checklist_rounded,
+                        color: AppTheme.primaryColor, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Quick Check',
+                          style: TextStyle(
+                              fontSize: 17, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'For the best try-on result',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              // Checklist items
+              _checklistItem(
+                icon: Icons.checkroom_outlined,
+                color: AppTheme.primaryColor,
+                text: 'Wearing form-fitting or minimal clothing',
+              ),
+              _checklistItem(
+                icon: Icons.do_not_disturb_on_outlined,
+                color: Colors.orange,
+                text: 'No heavy jackets, coats or bulky layers',
+              ),
+              _checklistItem(
+                icon: Icons.wb_sunny_outlined,
+                color: Colors.amber,
+                text: 'Good lighting — no harsh shadows',
+              ),
+              _checklistItem(
+                icon: Icons.accessibility_new,
+                color: Colors.teal,
+                text: 'Full body visible — head to feet',
+              ),
+
+              const SizedBox(height: 20),
+
+              // Action buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () =>
+                          Navigator.pop(dialogContext, false),
+                      style: OutlinedButton.styleFrom(
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text('Retake Photo'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () =>
+                          Navigator.pop(dialogContext, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text(
+                        'Looks Good!',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // If user confirmed all checklist items, proceed with photo processing.
+    // If they dismissed or tapped Retake, do nothing — they stay on preview.
+    if (confirmed == true && mounted) {
+      await _confirmPhoto();
+    } else if (confirmed == false && mounted) {
+      setState(() => _capturedImage = null);
+    }
+  }
+
+  // Helper widget for a single checklist row inside the dialog
+  Widget _checklistItem({
+    required IconData icon,
+    required Color color,
+    required String text,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 13, color: Colors.black87),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  // ─── End Q2 FIX ──────────────────────────────────────────────────────────
 
   // ─── CAPTURE ──────────────────────────────────────────────────────────────
   Future<void> _capturePhoto() async {
@@ -765,6 +963,8 @@ class _CameraPageState extends ConsumerState<CameraPage>
   }
 
   // ─── CONFIRM ──────────────────────────────────────────────────────────────
+  // Called only after the user confirms the pre-checklist dialog (Q2 FIX).
+  // All existing validation and navigation logic is unchanged.
   Future<void> _confirmPhoto() async {
     if (_capturedImage == null) return;
     setState(() => _isProcessing = true);
