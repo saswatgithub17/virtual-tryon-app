@@ -39,7 +39,7 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
         _showAdminDialog();
       }
     } else if (index == 1) {
-      context.router.push(const TryOnRoute());
+      context.router.push(TryOnRoute());
     } else if (index == 2) {
       context.router.push(const CartRoute());
     }

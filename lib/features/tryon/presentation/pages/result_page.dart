@@ -80,10 +80,11 @@ class _ResultPageState extends ConsumerState<ResultPage> {
       return;
     }
 
+    final cartSize =
+        ref.read(tryOnControllerProvider).tryOnCartSize;
     final cartController = ref.read(cartControllerProvider.notifier);
     for (final dress in dressesToAdd) {
-      // Default size 'M' — user can adjust in cart if needed
-      cartController.addToCart(dress, quantity: 1, size: 'M');
+      cartController.addToCart(dress, quantity: 1, size: cartSize);
     }
 
     final count = dressesToAdd.length;

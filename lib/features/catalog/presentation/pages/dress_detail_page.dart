@@ -4,9 +4,11 @@ import 'package:auto_route/auto_route.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:virtual_tryon_app/features/catalog/data/models/dress_model.dart';
 import 'package:virtual_tryon_app/features/cart/presentation/cart_controller.dart';
+import 'package:virtual_tryon_app/features/catalog/presentation/controllers/catalog_controller.dart';
 import 'package:virtual_tryon_app/core/theme/app_theme.dart';
 import 'package:virtual_tryon_app/core/network/api_config.dart';
 import 'package:virtual_tryon_app/core/router/app_router.dart';
+import 'package:virtual_tryon_app/core/utils/app_config.dart';
 
 @RoutePage()
 class DressDetailPage extends ConsumerStatefulWidget {
@@ -56,6 +58,31 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
   bool _inCart(List items) => items.any((i) =>
       i.dress.dressId == widget.dress.dressId &&
       i.selectedSize  == _sel.sizeName);
+
+  void _openVirtualTryOn() {
+    if (_isOOS) return;
+
+    final cat = ref.read(catalogControllerProvider.notifier);
+    String gender = cat.selectedGender;
+    if (widget.dress.gender == 'women') {
+      gender = 'women';
+    } else if (widget.dress.gender == 'men') {
+      gender = 'men';
+    }
+
+    String category = cat.selectedCategory;
+    final dressCat = widget.dress.category;
+    if (dressCat != null && AppConfig.categories.contains(dressCat)) {
+      category = dressCat;
+    }
+
+    context.router.push(TryOnRoute(
+      initialDress: widget.dress,
+      catalogGender: gender,
+      catalogCategory: category,
+      initialTryOnSize: _sel.sizeName,
+    ));
+  }
 
   @override
   void initState() {
@@ -790,6 +817,32 @@ class _DressDetailPageState extends ConsumerState<DressDetailPage> {
               ],
             ),
             const SizedBox(height: 12),
+          ],
+          if (!_isOOS) ...[
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: _openVirtualTryOn,
+                icon: const Icon(Icons.auto_fix_high_outlined,
+                    color: AppTheme.primaryColor),
+                label: const Text(
+                  'Virtual Try-On',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryColor,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
           ],
           SizedBox(
             width: double.infinity,

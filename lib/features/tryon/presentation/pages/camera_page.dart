@@ -778,7 +778,7 @@ class _CameraPageState extends ConsumerState<CameraPage>
       ref
           .read(tryOnControllerProvider.notifier)
           .setUserPhoto(_capturedImage);
-      if (mounted) context.router.push(const TryOnRoute());
+      if (mounted) context.router.push(TryOnRoute());
     } catch (e) {
       if (mounted) {
         Helpers.showError(context, 'Failed to process photo');

@@ -88,19 +88,26 @@ _SizeResult _computeSize(PickedImage photo) {
 // SIZE SUGGESTION BOTTOM SHEET
 // =============================================================================
 
-void _showSizeSheet(BuildContext ctx, PickedImage photo) {
+void _showSizeSheet(BuildContext ctx, WidgetRef ref, PickedImage photo) {
   final s = _computeSize(photo);
   showModalBottomSheet(
     context: ctx,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _SizeSheet(s: s),
+    builder: (sheetCtx) => _SizeSheet(
+      s: s,
+      onPickSize: (size) {
+        ref.read(tryOnControllerProvider.notifier).setTryOnCartSize(size);
+        Navigator.pop(sheetCtx);
+      },
+    ),
   );
 }
 
 class _SizeSheet extends StatelessWidget {
   final _SizeResult s;
-  const _SizeSheet({required this.s});
+  final void Function(String size) onPickSize;
+  const _SizeSheet({required this.s, required this.onPickSize});
 
   @override
   Widget build(BuildContext context) {
@@ -185,9 +192,13 @@ class _SizeSheet extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
-                  Expanded(child: _sizeBox(s.best, 'Best Fit', true)),
+                  Expanded(
+                      child: _sizeBox(s.best, 'Best Fit', true,
+                          onTap: () => onPickSize(s.best))),
                   const SizedBox(width: 12),
-                  Expanded(child: _sizeBox(s.also, 'Also Try', false)),
+                  Expanded(
+                      child: _sizeBox(s.also, 'Also Try', false,
+                          onTap: () => onPickSize(s.also))),
                 ],
               ),
             ),
@@ -264,7 +275,7 @@ class _SizeSheet extends StatelessWidget {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => onPickSize(s.best),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryColor,
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -320,8 +331,9 @@ class _SizeSheet extends StatelessWidget {
     );
   }
 
-  Widget _sizeBox(String size, String label, bool primary) {
-    return Container(
+  Widget _sizeBox(String size, String label, bool primary,
+      {VoidCallback? onTap}) {
+    final child = Container(
       padding: const EdgeInsets.symmetric(vertical: 18),
       decoration: BoxDecoration(
         color: primary
@@ -353,6 +365,15 @@ class _SizeSheet extends StatelessWidget {
         ],
       ),
     );
+    if (onTap == null) return child;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: child,
+      ),
+    );
   }
 
   Widget _meas(String label, String val) {
@@ -377,7 +398,21 @@ class _SizeSheet extends StatelessWidget {
 
 @RoutePage()
 class TryOnPage extends ConsumerStatefulWidget {
-  const TryOnPage({super.key});
+  final Dress? initialDress;
+  /// Catalog gender filter: `all` | `men` | `women`
+  final String? catalogGender;
+  /// Category chip label (e.g. from [AppConfig.categories]).
+  final String? catalogCategory;
+  /// Pre-fill cart / try-on flow size (e.g. from dress detail).
+  final String? initialTryOnSize;
+
+  const TryOnPage({
+    super.key,
+    this.initialDress,
+    this.catalogGender,
+    this.catalogCategory,
+    this.initialTryOnSize,
+  });
 
   @override
   ConsumerState<TryOnPage> createState() => _TryOnPageState();
@@ -399,6 +434,30 @@ class _TryOnPageState extends ConsumerState<TryOnPage>
       ..repeat();
     _progressAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
         CurvedAnimation(parent: _animController, curve: Curves.easeInOut));
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _applyTryOnEntryArgs());
+  }
+
+  void _applyTryOnEntryArgs() {
+    if (!mounted) return;
+    final w = widget;
+    if (w.initialTryOnSize != null && w.initialTryOnSize!.trim().isNotEmpty) {
+      ref
+          .read(tryOnControllerProvider.notifier)
+          .setTryOnCartSize(w.initialTryOnSize!.trim());
+    }
+    final cat = ref.read(catalogControllerProvider.notifier);
+    if (w.catalogGender != null) {
+      cat.setGender(w.catalogGender!);
+    }
+    if (w.catalogCategory != null) {
+      cat.setCategory(w.catalogCategory!);
+    }
+    if (w.initialDress != null) {
+      ref
+          .read(tryOnControllerProvider.notifier)
+          .ensureDressSelected(w.initialDress!);
+    }
   }
 
   @override
@@ -662,7 +721,7 @@ class _TryOnPageState extends ConsumerState<TryOnPage>
 
           // ── SIZE SUGGESTION BUTTON — always visible ───────────────────
           GestureDetector(
-            onTap: () => _showSizeSheet(context, state.userPhoto!),
+            onTap: () => _showSizeSheet(context, ref, state.userPhoto!),
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 12),
@@ -820,25 +879,35 @@ class _TryOnPageState extends ConsumerState<TryOnPage>
           BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Selected Dresses',
-              style: TextStyle(
-                  fontSize: 13, color: AppTheme.textSecondary)),
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                  colors: [AppTheme.primaryColor, AppTheme.secondaryColor]),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text('${state.selectedDresses.length}/5',
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Selected Dresses',
+                  style: TextStyle(
+                      fontSize: 13, color: AppTheme.textSecondary)),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                      colors: [AppTheme.primaryColor, AppTheme.secondaryColor]),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text('${state.selectedDresses.length}/5',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Add-to-cart size: ${state.tryOnCartSize}  ·  Change via size suggestion',
+            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
           ),
         ],
       ),

@@ -49,14 +49,6 @@ class CameraRoute extends PageRouteInfo<CameraRouteArgs> {
   );
 }
 
-/// generated route for [OnboardingPage]  ← NEW
-class OnboardingRoute extends PageRouteInfo<void> {
-  const OnboardingRoute({List<PageRouteInfo>? children})
-      : super(OnboardingRoute.name, initialChildren: children);
-  static const String name = 'OnboardingRoute';
-  static PageInfo page = PageInfo(name, builder: (data) => const OnboardingPage());
-}
-
 class CameraRouteArgs {
   const CameraRouteArgs({this.key, this.dress});
 
@@ -176,6 +168,22 @@ class DressDetailRouteArgs {
 }
 
 /// generated route for
+/// [OnboardingPage]
+class OnboardingRoute extends PageRouteInfo<void> {
+  const OnboardingRoute({List<PageRouteInfo>? children})
+      : super(OnboardingRoute.name, initialChildren: children);
+
+  static const String name = 'OnboardingRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const OnboardingPage();
+    },
+  );
+}
+
+/// generated route for
 /// [PaymentPage]
 class PaymentRoute extends PageRouteInfo<void> {
   const PaymentRoute({List<PageRouteInfo>? children})
@@ -288,18 +296,90 @@ class ThankYouRoute extends PageRouteInfo<void> {
 
 /// generated route for
 /// [TryOnPage]
-class TryOnRoute extends PageRouteInfo<void> {
-  const TryOnRoute({List<PageRouteInfo>? children})
-      : super(TryOnRoute.name, initialChildren: children);
+class TryOnRoute extends PageRouteInfo<TryOnRouteArgs> {
+  TryOnRoute({
+    Key? key,
+    Dress? initialDress,
+    String? catalogGender,
+    String? catalogCategory,
+    String? initialTryOnSize,
+    List<PageRouteInfo>? children,
+  }) : super(
+          TryOnRoute.name,
+          args: TryOnRouteArgs(
+            key: key,
+            initialDress: initialDress,
+            catalogGender: catalogGender,
+            catalogCategory: catalogCategory,
+            initialTryOnSize: initialTryOnSize,
+          ),
+          initialChildren: children,
+        );
 
   static const String name = 'TryOnRoute';
 
   static PageInfo page = PageInfo(
     name,
     builder: (data) {
-      return const TryOnPage();
+      final args = data.argsAs<TryOnRouteArgs>(
+        orElse: () => const TryOnRouteArgs(),
+      );
+      return TryOnPage(
+        key: args.key,
+        initialDress: args.initialDress,
+        catalogGender: args.catalogGender,
+        catalogCategory: args.catalogCategory,
+        initialTryOnSize: args.initialTryOnSize,
+      );
     },
   );
+}
+
+class TryOnRouteArgs {
+  const TryOnRouteArgs({
+    this.key,
+    this.initialDress,
+    this.catalogGender,
+    this.catalogCategory,
+    this.initialTryOnSize,
+  });
+
+  final Key? key;
+
+  final Dress? initialDress;
+
+  final String? catalogGender;
+
+  final String? catalogCategory;
+
+  final String? initialTryOnSize;
+
+  @override
+  String toString() {
+    return 'TryOnRouteArgs{key: $key, initialDress: $initialDress, '
+        'catalogGender: $catalogGender, catalogCategory: $catalogCategory, '
+        'initialTryOnSize: $initialTryOnSize}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! TryOnRouteArgs) return false;
+    return key == other.key &&
+        initialDress == other.initialDress &&
+        catalogGender == other.catalogGender &&
+        catalogCategory == other.catalogCategory &&
+        initialTryOnSize == other.initialTryOnSize;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        key,
+        initialDress,
+        catalogGender,
+        catalogCategory,
+        initialTryOnSize,
+      );
 }
 
 /// generated route for
