@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:auto_route/auto_route.dart';
@@ -580,6 +582,9 @@ class _TryOnPageState extends ConsumerState<TryOnPage>
           // Selection counter
           _buildCounter(state),
 
+          // Catalog-context filters (same as home: gender + category)
+          _buildTryOnFilters(),
+
           // Dress grid
           Expanded(
             child: catalog.when(
@@ -840,6 +845,93 @@ class _TryOnPageState extends ConsumerState<TryOnPage>
     );
   }
 
+  Widget _buildTryOnFilters() {
+    final ctrl = ref.watch(catalogControllerProvider.notifier);
+    final selectedGender = ctrl.selectedGender;
+    final selectedCategory = ctrl.selectedCategory;
+
+    final filters = [
+      ('all', 'All'),
+      ('men', 'Men'),
+      ('women', 'Women'),
+    ];
+    final baseCategories =
+        AppConfig.categories.where((c) => c != 'All').toList();
+    final chips = <String>['All', 'Suggestion', ...baseCategories];
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: filters.map((f) {
+              final selected = selectedGender == f.$1;
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: ChoiceChip(
+                    label: Text(f.$2),
+                    selected: selected,
+                    onSelected: (_) =>
+                        ref.read(catalogControllerProvider.notifier).setGender(f.$1),
+                    selectedColor: AppTheme.primaryColor,
+                    backgroundColor: Colors.grey[100],
+                    labelStyle: TextStyle(
+                      color: selected ? Colors.white : AppTheme.textPrimary,
+                      fontSize: 12,
+                      fontWeight:
+                          selected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 36,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: chips.length,
+              itemBuilder: (_, i) {
+                final category = chips[i];
+                final selected = selectedCategory == category;
+                final label =
+                    category == 'Suggestion' ? 'Suggestion' : category;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: ChoiceChip(
+                    label: Text(label),
+                    selected: selected,
+                    onSelected: (_) => ref
+                        .read(catalogControllerProvider.notifier)
+                        .setCategory(category),
+                    selectedColor: AppTheme.primaryColor,
+                    backgroundColor: Colors.grey[100],
+                    labelStyle: TextStyle(
+                      color: selected ? Colors.white : AppTheme.textPrimary,
+                      fontSize: 11,
+                      fontWeight:
+                          selected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ─── DRESS GRID ───────────────────────────────────────────────────────────
   Widget _buildGrid(TryOnState state, List dresses) {
     return GridView.builder(
@@ -979,6 +1071,149 @@ class _TryOnPageState extends ConsumerState<TryOnPage>
           ),
         );
       },
+    );
+  }
+
+  Future<Uint8List?> _readPhotoBytes(PickedImage photo) async {
+    if (photo.bytes != null) return photo.bytes;
+    if (photo.path == null) return null;
+    return await File(photo.path!).readAsBytes();
+  }
+
+  Future<String?> _validatePhotoQuality(PickedImage photo) async {
+    try {
+      final bytes = await _readPhotoBytes(photo);
+      if (bytes == null || bytes.isEmpty) {
+        return 'Could not read the photo. Please try another image.';
+      }
+
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      final image = frame.image;
+      final w = image.width;
+      final h = image.height;
+
+      if (w < 420 || h < 420) {
+        return 'Image resolution is too low. Use a clearer, higher-resolution full-body photo.';
+      }
+
+      final raw = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      if (raw == null) return null;
+      final pix = raw.buffer.asUint8List();
+
+      // Sample pixels to keep this lightweight.
+      final step = max(1, (w * h) ~/ 3000);
+      double sumL = 0, sumL2 = 0, edge = 0;
+      int n = 0;
+      for (int i = 0; i + 7 < pix.length; i += 4 * step) {
+        final r = pix[i].toDouble();
+        final g = pix[i + 1].toDouble();
+        final b = pix[i + 2].toDouble();
+        final l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        sumL += l;
+        sumL2 += l * l;
+        n++;
+
+        final j = i + 4 * step;
+        if (j + 2 < pix.length) {
+          final r2 = pix[j].toDouble();
+          final g2 = pix[j + 1].toDouble();
+          final b2 = pix[j + 2].toDouble();
+          final l2 = 0.2126 * r2 + 0.7152 * g2 + 0.0722 * b2;
+          edge += (l - l2).abs();
+        }
+      }
+
+      if (n == 0) return null;
+      final mean = sumL / n;
+      final variance = (sumL2 / n) - (mean * mean);
+      final stdDev = sqrt(max(0, variance));
+      final edgeScore = edge / n;
+
+      if (mean < 35) {
+        return 'The photo is too dark. Please use better lighting.';
+      }
+      if (mean > 230) {
+        return 'The photo is overexposed. Please avoid very bright light.';
+      }
+      if (stdDev < 20) {
+        return 'The photo has very low contrast. Please retake in clearer lighting.';
+      }
+      if (edgeScore < 8) {
+        return 'The photo looks blurry. Please retake a sharper full-body image.';
+      }
+      return null;
+    } catch (_) {
+      // If decoding fails, let backend validation still handle the request.
+      return null;
+    }
+  }
+
+  Future<bool> _confirmMismatchBeforeTryOn(TryOnState state) async {
+    final mismatches =
+        state.selectedDresses.where((dress) => _isMismatch(dress)).toList();
+    if (mismatches.isEmpty) return true;
+
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Gender Compatibility Warning'),
+        content: Text(
+          '${mismatches.length} selected dress(es) may not match the detected gender.\n\nTry-on can still run, but output quality may reduce.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            child: const Text('Continue Anyway',
+                style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    return proceed ?? false;
+  }
+
+  Future<void> _showRetryGuidance([String? reason]) async {
+    await showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Try Again Tips',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            if (reason != null) ...[
+              const SizedBox(height: 8),
+              Text(reason, style: const TextStyle(color: Colors.redAccent)),
+            ],
+            const SizedBox(height: 12),
+            const Text('• Keep full body visible (head to knees/feet).'),
+            const Text('• Use brighter, even lighting.'),
+            const Text('• Hold camera steady to avoid blur.'),
+            const Text('• Stand facing the camera directly.'),
+            const SizedBox(height: 14),
+            Align(
+              alignment: Alignment.centerRight,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Retake Photo'),
+              ),
+            )
+          ],
+        ),
+      ),
     );
   }
 
@@ -1145,6 +1380,23 @@ class _TryOnPageState extends ConsumerState<TryOnPage>
   }
 
   Future<void> _processTryOn() async {
+    final state = ref.read(tryOnControllerProvider);
+    final photo = state.userPhoto;
+    if (photo == null) {
+      Helpers.showError(context, 'Please upload a photo first.');
+      return;
+    }
+
+    final allowMismatch = await _confirmMismatchBeforeTryOn(state);
+    if (!allowMismatch) return;
+
+    final qualityIssue = await _validatePhotoQuality(photo);
+    if (qualityIssue != null) {
+      if (!mounted) return;
+      await _showRetryGuidance(qualityIssue);
+      return;
+    }
+
     final ok = await ref
         .read(tryOnControllerProvider.notifier)
         .processTryOn();

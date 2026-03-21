@@ -22,6 +22,7 @@ class ResultPage extends ConsumerStatefulWidget {
 class _ResultPageState extends ConsumerState<ResultPage> {
   late PageController _pageController;
   int _currentPage = 0;
+  final Set<int> _selectedForCart = <int>{};
 
   @override
   void initState() {
@@ -35,26 +36,57 @@ class _ResultPageState extends ConsumerState<ResultPage> {
     super.dispose();
   }
 
-  // ─── Add all selected dresses to cart then navigate ───────────────────────
-  void _addAllToCart() {
+  void _syncCartSelection(TryOnState state) {
+    final idsFromResults = state.results
+        .where((r) => r.dressId != null)
+        .map((r) => r.dressId!)
+        .toSet();
+    final ids = idsFromResults.isNotEmpty
+        ? idsFromResults
+        : state.selectedDresses.map((d) => d.dressId).toSet();
+
+    if (_selectedForCart.isEmpty) {
+      _selectedForCart.addAll(ids);
+    } else {
+      _selectedForCart.removeWhere((id) => !ids.contains(id));
+      if (_selectedForCart.isEmpty) _selectedForCart.addAll(ids);
+    }
+  }
+
+  void _toggleCartSelection(int? dressId, bool selected) {
+    if (dressId == null) return;
+    setState(() {
+      if (selected) {
+        _selectedForCart.add(dressId);
+      } else {
+        _selectedForCart.remove(dressId);
+      }
+    });
+  }
+
+  // ─── Add selected dresses to cart then navigate ───────────────────────────
+  void _addSelectedToCart() {
     // Read selected dresses BEFORE any navigation so AutoDispose doesn't
     // wipe the state mid-call.
     final List<Dress> selectedDresses =
         List.from(ref.read(tryOnControllerProvider).selectedDresses);
 
-    if (selectedDresses.isEmpty) {
-      Helpers.showError(
-          context, 'No dresses selected to add to cart.');
+    final dressesToAdd = selectedDresses
+        .where((d) => _selectedForCart.contains(d.dressId))
+        .toList();
+
+    if (dressesToAdd.isEmpty) {
+      Helpers.showError(context, 'Select at least one dress to add to cart.');
       return;
     }
 
     final cartController = ref.read(cartControllerProvider.notifier);
-    for (final dress in selectedDresses) {
+    for (final dress in dressesToAdd) {
       // Default size 'M' — user can adjust in cart if needed
       cartController.addToCart(dress, quantity: 1, size: 'M');
     }
 
-    final count = selectedDresses.length;
+    final count = dressesToAdd.length;
     Helpers.showSuccess(
       context,
       '$count dress${count > 1 ? "es" : ""} added to cart!',
@@ -66,9 +98,57 @@ class _ResultPageState extends ConsumerState<ResultPage> {
     });
   }
 
+  Future<void> _showRetryGuidance() async {
+    await showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Retake Tips',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            const Text('• Keep full body visible (head to feet).'),
+            const Text('• Use bright, even lighting.'),
+            const Text('• Keep camera steady to avoid blur.'),
+            const Text('• Face camera directly for best fit.'),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Close'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      ref.read(tryOnControllerProvider.notifier).reset();
+                      context.router.pop();
+                    },
+                    child: const Text('Try Again'),
+                  ),
+                ),
+              ],
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tryOnState = ref.watch(tryOnControllerProvider);
+    _syncCartSelection(tryOnState);
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -113,6 +193,8 @@ class _ResultPageState extends ConsumerState<ResultPage> {
 
   Widget _buildResultCard(TryOnResult result) {
     final imageUrl = result.displayUrl;
+    final include = result.dressId != null &&
+        _selectedForCart.contains(result.dressId);
 
     return Padding(
       padding: const EdgeInsets.all(20),
@@ -155,6 +237,16 @@ class _ResultPageState extends ConsumerState<ResultPage> {
                         fontSize: 20, fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center),
                 const SizedBox(height: 8),
+                if (result.dressId != null)
+                  CheckboxListTile(
+                    value: include,
+                    onChanged: (v) =>
+                        _toggleCartSelection(result.dressId, v ?? false),
+                    dense: true,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Add this dress to cart'),
+                  ),
                 Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 12, vertical: 6),
@@ -237,10 +329,7 @@ class _ResultPageState extends ConsumerState<ResultPage> {
           children: [
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: () {
-                  ref.read(tryOnControllerProvider.notifier).reset();
-                  context.router.pop();
-                },
+                onPressed: _showRetryGuidance,
                 icon: const Icon(Icons.refresh, color: Colors.white),
                 label: const Text('Try Again',
                     style: TextStyle(color: Colors.white)),
@@ -254,12 +343,11 @@ class _ResultPageState extends ConsumerState<ResultPage> {
             const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton.icon(
-                // ─── Fix: actually adds dresses to cart ───
-                onPressed: _addAllToCart,
+                onPressed: _addSelectedToCart,
                 icon: const Icon(Icons.shopping_cart),
                 label: Text(
-                  tryOnState.selectedDresses.isNotEmpty
-                      ? 'Add ${tryOnState.selectedDresses.length} to Cart'
+                  _selectedForCart.isNotEmpty
+                      ? 'Add ${_selectedForCart.length} to Cart'
                       : 'Add to Cart',
                 ),
                 style: ElevatedButton.styleFrom(
